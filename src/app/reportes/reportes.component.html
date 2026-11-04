@@ -1,0 +1,174 @@
+<div class="reportes-container">
+  <header class="reportes-header">
+    <div class="header-titles">
+      <h1 class="header-title">
+        <i class="bi bi-cpu text-primary-fire"></i>
+        MÓDULO DE REPORTES MULTIMODALES &amp; SÍNTESIS TÁCTICA
+      </h1>
+      <p class="header-subtitle font-tactical-mono">
+        MS-05 IA FAST-MCP &bull; RAG DETERMINISTA &bull; FASTER-WHISPER &bull; EDGE-TTS
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <a routerLink="/" class="btn-fire-outline btn-sm">
+        <i class="bi bi-broadcast-pin"></i> Volver a Sala de Crisis
+      </a>
+    </div>
+  </header>
+
+  <div *ngIf="errorMensaje()" class="modal-alert-danger">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span>{{ errorMensaje() }}</span>
+  </div>
+
+  <div class="reportes-grid">
+    <!-- Panel de Entrada (Texto o Voz) -->
+    <div class="panel-input">
+      <h2 class="panel-title">
+        <i class="bi bi-chat-left-text-fill"></i> Solicitud de Reporte
+      </h2>
+
+      <!-- Opción 1: Instrucción por Texto Natural -->
+      <div class="form-group">
+        <label class="form-label">Comando o Requerimiento Táctico:</label>
+        <textarea
+          rows="4"
+          class="textarea-tactical"
+          placeholder="Escriba la instrucción de reporte táctico..."
+          [ngModel]="instruccionTexto()"
+          (ngModelChange)="instruccionTexto.set($event)"
+        ></textarea>
+      </div>
+
+      <div class="voice-selection-row">
+        <label class="form-label">Voz Neural de Briefing:</label>
+        <select
+          class="select-tactical"
+          [ngModel]="vozTts()"
+          (ngModelChange)="vozTts.set($event)"
+        >
+          <option value="es-BO-MarceloNeural">es-BO-MarceloNeural (Oficial Operativo)</option>
+          <option value="es-BO-SofiaNeural">es-BO-SofiaNeural (Operadora de Radio)</option>
+        </select>
+      </div>
+
+      <div class="action-buttons-row">
+        <button
+          class="btn-fire-primary"
+          [disabled]="procesando()"
+          (click)="generarPorTexto()"
+        >
+          <span *ngIf="!procesando()"><i class="bi bi-file-text-fill"></i> Generar por Texto</span>
+          <span *ngIf="procesando()"><i class="bi bi-arrow-repeat spin-icon"></i> Sintetizando...</span>
+        </button>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Opción 2: Carga de Audio Radial Voice-to-Report -->
+      <h2 class="panel-title" style="margin-top: 10px;">
+        <i class="bi bi-mic-fill"></i> Ingesta Radial Voice-to-Report
+      </h2>
+      <p class="text-xs text-muted" style="margin-bottom: 12px;">
+        Transcribe notas de voz o transmisiones de radio de 25 metros con Faster-Whisper.
+      </p>
+
+      <div class="file-drop-area">
+        <input
+          type="file"
+          id="audioFileInput"
+          accept="audio/*"
+          (change)="onArchivoSeleccionado($event)"
+          class="file-input-hidden"
+        />
+        <label for="audioFileInput" class="file-drop-label">
+          <i class="bi bi-cloud-arrow-up-fill file-icon"></i>
+          <span *ngIf="!nombreArchivo()">Haga clic para seleccionar archivo radial (WAV, MP3, OGG)</span>
+          <span *ngIf="nombreArchivo()" class="font-bold text-dark">{{ nombreArchivo() }}</span>
+        </label>
+      </div>
+
+      <div class="action-buttons-row" style="margin-top: 14px;">
+        <button
+          class="btn-fire-secondary"
+          [disabled]="procesando() || !archivoAudio()"
+          (click)="generarPorVoz()"
+        >
+          <span *ngIf="!procesando()"><i class="bi bi-soundwave"></i> Transcribir y Compilar Multimodal</span>
+          <span *ngIf="procesando()"><i class="bi bi-arrow-repeat spin-icon"></i> Inferencia Whisper...</span>
+        </button>
+
+        <button class="btn-fire-outline" (click)="limpiar()">
+          <i class="bi bi-trash3"></i> Limpiar
+        </button>
+      </div>
+    </div>
+
+    <!-- Panel de Resultados Multimodales -->
+    <div class="panel-output">
+      <h2 class="panel-title">
+        <i class="bi bi-clipboard2-data-fill"></i> Artefactos Multimodales Compilados
+      </h2>
+
+      <div *ngIf="!reporteGenerado() && !procesando()" class="empty-output">
+        <i class="bi bi-file-earmark-bar-graph"></i>
+        <p>Genere un reporte mediante texto o nota de voz para ver los artefactos aquí.</p>
+      </div>
+
+      <div *ngIf="procesando()" class="loading-output">
+        <i class="bi bi-arrow-repeat spin-icon"></i>
+        <p>Procesando RAG Grounding determinista y compilando PDF, Excel y Audio Neural...</p>
+      </div>
+
+      <div *ngIf="reporteGenerado()" class="report-content">
+        <!-- Barra de Descargas de Artefactos -->
+        <div class="download-bar">
+          <a
+            [href]="reporteGenerado()!.descargas.pdf"
+            target="_blank"
+            class="btn-fire-danger btn-sm"
+          >
+            <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF WeasyPrint
+          </a>
+
+          <a
+            [href]="reporteGenerado()!.descargas.excel"
+            target="_blank"
+            class="btn-fire-success-outline btn-sm"
+          >
+            <i class="bi bi-file-earmark-excel-fill"></i> Descargar Excel OpenPyXL
+          </a>
+
+          <span class="report-badge font-tactical-mono">
+            ID: {{ reporteGenerado()!.id_reporte }} ({{ reporteGenerado()!.tiempo_generacion_ms }} ms)
+          </span>
+        </div>
+
+        <!-- Reproductor de Audio Radial Edge-TTS -->
+        <div class="audio-player-box">
+          <label class="form-label">
+            <i class="bi bi-volume-up-fill text-primary-fire"></i> Briefing de Radio Sintetizado (Edge-TTS):
+          </label>
+          <audio
+            controls
+            [src]="reporteGenerado()!.descargas.audio"
+            class="audio-element"
+          ></audio>
+        </div>
+
+        <!-- Resumen Ejecutivo -->
+        <div class="executive-summary-card">
+          <span class="summary-label">RESUMEN EJECUTIVO:</span>
+          <p>{{ reporteGenerado()!.resumen_ejecutivo }}</p>
+        </div>
+
+        <!-- Previsualización Markdown -->
+        <div class="markdown-preview">
+          <label class="form-label">Detalle Táctico (Formato Markdown Oficial):</label>
+          <pre class="markdown-content font-tactical-mono">{{ reporteGenerado()!.markdown_completo }}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
