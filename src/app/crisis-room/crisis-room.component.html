@@ -1,0 +1,358 @@
+<div class="crisis-dashboard">
+  <!-- Toast flotante de notificación de emergencias -->
+  <div *ngIf="mensajeToast()" class="toast-notification" [ngClass]="'toast-' + mensajeToast()!.tipo">
+    <i class="bi" [ngClass]="{
+      'bi-exclamation-octagon-fill': mensajeToast()!.tipo === 'danger',
+      'bi-check-circle-fill': mensajeToast()!.tipo === 'success',
+      'bi-info-circle-fill': mensajeToast()!.tipo === 'info'
+    }"></i>
+    <span>{{ mensajeToast()!.texto }}</span>
+    <button class="toast-close-btn" (click)="mensajeToast.set(null)">
+      <i class="bi bi-x"></i>
+    </button>
+  </div>
+
+  <!-- Cabecera de la Sala de Crisis con Estado WebSocket -->
+  <header class="crisis-header">
+    <div class="header-titles">
+      <h1 class="header-title">
+        <i class="bi bi-broadcast-pin text-primary-fire"></i>
+        SALA DE CRISIS Y DESPACHO TÁCTICO
+      </h1>
+      <p class="header-subtitle font-tactical-mono">
+        CENTRAL 119 SANTA CRUZ &bull; CONTROL REACTIVO EN TIEMPO REAL
+      </p>
+    </div>
+
+    <div class="header-status-badge">
+      <a routerLink="/reportes" class="btn-fire-outline btn-sm">
+        <i class="bi bi-cpu"></i> Generar Reportes IA
+      </a>
+      <span *ngIf="estaConectadoWs()" class="badge-fire badge-fire-success">
+        <i class="bi bi-reception-4"></i> EN VIVO WSS (PUERTO 3000)
+      </span>
+      <span *ngIf="!estaConectadoWs()" class="badge-fire badge-fire-warning">
+        <i class="bi bi-arrow-repeat"></i> CONECTANDO CON GATEWAY...
+      </span>
+    </div>
+  </header>
+
+  <!-- Tarjetas KPI Tácticas en Vivo -->
+  <section class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon-wrapper kpi-icon-critical">
+        <i class="bi bi-fire"></i>
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">INCIDENTES ACTIVOS</span>
+        <span class="kpi-value font-tactical-mono">{{ kpis().incidentesActivos }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrapper kpi-icon-truck">
+        <i class="bi bi-truck"></i>
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">UNIDADES EN COMBATE</span>
+        <span class="kpi-value font-tactical-mono">{{ kpis().camionesEnCombate }}</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrapper kpi-icon-water">
+        <i class="bi bi-droplet-fill"></i>
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">HIDRANTES EN SERVICIO</span>
+        <span class="kpi-value font-tactical-mono">{{ kpis().hidrantesOperativos }} / 45</span>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon-wrapper kpi-icon-reserve">
+        <i class="bi bi-shield-check"></i>
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">AGUA TÁCTICA DISPONIBLE</span>
+        <span class="kpi-value font-tactical-mono">{{ kpis().litrosAguaDisponibles | number }} L</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Barra de Filtros y Búsqueda Rápida -->
+  <section class="filter-toolbar">
+    <div class="search-box">
+      <i class="bi bi-search search-icon"></i>
+      <input
+        type="text"
+        class="input-tactical"
+        placeholder="Buscar por código, calle o cuadrante..."
+        [ngModel]="filtroTexto()"
+        (ngModelChange)="filtroTexto.set($event); paginaActual.set(1)"
+      />
+    </div>
+
+    <div class="filter-actions">
+      <div class="select-wrapper">
+        <label class="filter-label">Nivel de Riesgo:</label>
+        <select
+          class="select-tactical"
+          [ngModel]="filtroRiesgo()"
+          (ngModelChange)="filtroRiesgo.set($event); paginaActual.set(1)"
+        >
+          <option value="TODOS">Todos los Niveles</option>
+          <option value="CRITICO">Crítico (Rojo)</option>
+          <option value="ALERTA">Alerta (Ámbar)</option>
+          <option value="CONTROLADO">Controlado (Verde)</option>
+        </select>
+      </div>
+
+      <button class="btn-fire-outline" (click)="limpiarFiltros()">
+        <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+      </button>
+    </div>
+  </section>
+
+  <!-- Tabla de Incidentes Activos -->
+  <section class="table-container">
+    <div class="table-responsive">
+      <table class="table-tactical">
+        <thead>
+          <tr>
+            <th style="width: 110px;">CÓDIGO</th>
+            <th style="width: 90px;">HORA</th>
+            <th>TIPO &amp; DESCRIPCIÓN DEL SINIESTRO</th>
+            <th style="width: 220px;">CUADRANTE / DIRECCIÓN</th>
+            <th style="width: 140px;">RIESGO</th>
+            <th style="width: 130px;">ESTADO</th>
+            <th style="width: 170px;" class="text-right">GOBERNANZA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let inc of incidentesPaginados()" [class.row-critical]="inc.nivelRiesgo === 'CRITICO'">
+            <td class="font-tactical-mono font-bold">{{ inc.codigo }}</td>
+            <td class="font-tactical-mono text-muted">{{ inc.horaReporte }}</td>
+            <td>
+              <div class="incident-cell">
+                <span class="incident-title">{{ inc.titulo }}</span>
+                <span class="incident-desc text-muted">{{ inc.descripcion }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="location-cell">
+                <span class="font-bold text-dark">{{ inc.cuadrante }}</span>
+                <span class="text-muted text-xs">{{ inc.direccion }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="badge-fire" [ngClass]="claseBadgeRiesgo(inc.nivelRiesgo)">
+                <i class="bi" [ngClass]="{
+                  'bi-exclamation-octagon-fill': inc.nivelRiesgo === 'CRITICO',
+                  'bi-exclamation-triangle-fill': inc.nivelRiesgo === 'ALERTA',
+                  'bi-check-circle-fill': inc.nivelRiesgo === 'CONTROLADO'
+                }"></i>
+                {{ inc.nivelRiesgo }}
+              </span>
+            </td>
+            <td>
+              <span class="badge-fire badge-fire-neutral font-tactical-mono">
+                {{ inc.camionAsignado ? inc.camionAsignado : inc.estado }}
+              </span>
+            </td>
+            <td class="text-right">
+              <!-- Botón Primario Human-in-the-Loop -->
+              <button
+                *ngIf="inc.estado !== 'DESPACHADO' && inc.estado !== 'CONTROLADO'"
+                class="btn-fire-primary btn-sm"
+                (click)="abrirModalDespacho(inc)"
+              >
+                <i class="bi bi-send-fill"></i> Aprobar Despacho
+              </button>
+
+              <span *ngIf="inc.estado === 'DESPACHADO'" class="badge-fire badge-fire-warning">
+                <i class="bi bi-truck"></i> EN CAMINO
+              </span>
+
+              <span *ngIf="inc.estado === 'CONTROLADO'" class="badge-fire badge-fire-success">
+                <i class="bi bi-check2"></i> ASEGURADO
+              </span>
+            </td>
+          </tr>
+
+          <tr *ngIf="incidentesPaginados().length === 0">
+            <td colspan="7" class="empty-state">
+              <i class="bi bi-inbox text-muted"></i>
+              <p>No se encontraron siniestros que coincidan con los filtros aplicados.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación Estándar de 15 Registros -->
+    <footer class="table-pagination">
+      <div class="pagination-info text-muted">
+        Mostrando {{ (paginaActual() - 1) * elementosPorPagina + 1 }}–{{
+          paginaActual() * elementosPorPagina > incidentesFiltrados().length
+            ? incidentesFiltrados().length
+            : paginaActual() * elementosPorPagina
+        }} de {{ incidentesFiltrados().length }} incidentes
+      </div>
+
+      <div class="pagination-controls">
+        <button
+          class="btn-page"
+          [disabled]="paginaActual() === 1"
+          (click)="cambiarPagina(paginaActual() - 1)"
+        >
+          <i class="bi bi-chevron-left"></i> Anterior
+        </button>
+
+        <span class="page-indicator font-tactical-mono">
+          Página {{ paginaActual() }} de {{ totalPaginas() }}
+        </span>
+
+        <button
+          class="btn-page"
+          [disabled]="paginaActual() === totalPaginas()"
+          (click)="cambiarPagina(paginaActual() + 1)"
+        >
+          Siguiente <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- MODAL DE GOBERNANZA HUMAN-IN-THE-LOOP (APROBAR DESPACHO) -->
+  <div *ngIf="modalDespachoAbierto()" class="modal-backdrop">
+    <div class="modal-dialog">
+      <header class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title">
+            <i class="bi bi-shield-lock-fill text-primary-fire"></i>
+            Aprobación Táctica de Despacho (Human-in-the-Loop)
+          </h2>
+          <span class="font-tactical-mono text-muted text-xs">
+            TRANSACCIÓN DISTRIBUIDA SAGA &bull; MS-01 &bull; MS-02 &bull; MS-03
+          </span>
+        </div>
+        <button class="modal-close-icon" [disabled]="enviandoDespacho()" (click)="cerrarModalDespacho()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <!-- Banner de Alerta de Error dentro del Modal (REGLA INVIOLABLE: no se cierra) -->
+        <div *ngIf="errorDespachoModal()" class="modal-alert-danger">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div>
+            <strong>Error de Orquestación:</strong> {{ errorDespachoModal() }}
+          </div>
+        </div>
+
+        <!-- Resumen del Incidente Seleccionado -->
+        <div *ngIf="incidenteSeleccionado()" class="incident-summary-box">
+          <div class="summary-header">
+            <span class="font-tactical-mono font-bold">{{ incidenteSeleccionado()!.codigo }}</span>
+            <span class="badge-fire" [ngClass]="claseBadgeRiesgo(incidenteSeleccionado()!.nivelRiesgo)">
+              {{ incidenteSeleccionado()!.nivelRiesgo }}
+            </span>
+          </div>
+          <p class="summary-title">{{ incidenteSeleccionado()!.titulo }}</p>
+          <div class="summary-meta font-tactical-mono text-xs text-muted">
+            <span><i class="bi bi-geo-alt"></i> {{ incidenteSeleccionado()!.direccion }} ({{ incidenteSeleccionado()!.cuadrante }})</span>
+            <span><i class="bi bi-clock"></i> Reportado: {{ incidenteSeleccionado()!.horaReporte }}</span>
+          </div>
+        </div>
+
+        <!-- Formulario Táctico de Asignación -->
+        <form class="tactical-form" (ngSubmit)="ejecutarAprobacionDespacho()">
+          <div class="form-group">
+            <label class="form-label" for="camionSelect">
+              Unidad Vehicular / Autobomba a Despachar: <span class="text-danger">*</span>
+            </label>
+            <select
+              id="camionSelect"
+              class="select-tactical"
+              [class.input-error]="erroresCampos().camion"
+              [ngModel]="camionSeleccionadoId()"
+              (ngModelChange)="camionSeleccionadoId.set($event)"
+              name="camionSelect"
+            >
+              <option value="" disabled>Seleccione una unidad disponible...</option>
+              <option *ngFor="let cam of camiones()" [value]="cam.id">
+                {{ cam.placa }} - {{ cam.tipo }} (Agua: {{ cam.capacidadAguaL | number }} L) [{{ cam.estado }}]
+              </option>
+            </select>
+            <!-- Error inline en rojo -->
+            <div *ngIf="erroresCampos().camion" class="field-error-text">
+              <i class="bi bi-exclamation-circle-fill"></i> {{ erroresCampos().camion }}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="litrosEspuma">
+              Reserva de Espumógeno Sintético AFFF (Litros): <span class="text-danger">*</span>
+            </label>
+            <input
+              id="litrosEspuma"
+              type="number"
+              min="0"
+              max="1000"
+              step="50"
+              class="input-tactical font-tactical-mono"
+              [class.input-error]="erroresCampos().espumogeno"
+              [ngModel]="litrosEspumogeno()"
+              (ngModelChange)="litrosEspumogeno.set($event)"
+              name="litrosEspuma"
+            />
+            <div *ngIf="erroresCampos().espumogeno" class="field-error-text">
+              <i class="bi bi-exclamation-circle-fill"></i> {{ erroresCampos().espumogeno }}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="notasOperativas">
+              Notas Tácticas y Orden de Despliegue (Opcional):
+            </label>
+            <textarea
+              id="notasOperativas"
+              rows="3"
+              class="textarea-tactical"
+              placeholder="Instrucciones radiales para el maquinista o cuadrante de abastecimiento..."
+              [ngModel]="notasOperativas()"
+              (ngModelChange)="notasOperativas.set($event)"
+              name="notasOperativas"
+            ></textarea>
+          </div>
+        </form>
+      </div>
+
+      <footer class="modal-footer">
+        <button
+          type="button"
+          class="btn-fire-danger"
+          [disabled]="enviandoDespacho()"
+          (click)="cerrarModalDespacho()"
+        >
+          <i class="bi bi-x-lg"></i> Cancelar
+        </button>
+
+        <button
+          type="button"
+          class="btn-fire-primary"
+          [disabled]="enviandoDespacho()"
+          (click)="ejecutarAprobacionDespacho()"
+        >
+          <span *ngIf="!enviandoDespacho()">
+            <i class="bi bi-send-fill"></i> Confirmar y Despachar Unidad
+          </span>
+          <span *ngIf="enviandoDespacho()">
+            <i class="bi bi-arrow-repeat spin-icon"></i> Coordinando SAGA...
+          </span>
+        </button>
+      </footer>
+    </div>
+  </div>
+</div>
