@@ -3,22 +3,38 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { Incidente, NivelRiesgo, KpiCrisis } from '../models/incidente.model';
+import {
+  Incidente,
+  NivelRiesgo,
+  EstadoIncidente,
+  KpiCrisis,
+  HistorialTimelineItem,
+  DespachoUnidadItem,
+  TransaccionSagaItem
+} from '../models/incidente.model';
 import { CamionOption, DespachoRequest } from '../models/despacho.model';
 import { DespachoService } from '../services/despacho.service';
 import { SalaCrisisSocketService } from '../services/sala-crisis-socket.service';
+import { ReportesComponent } from '../reportes/reportes.component';
 
 @Component({
   selector: 'app-crisis-room',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, ReportesComponent],
   templateUrl: './crisis-room.component.html',
   styleUrls: ['./crisis-room.component.css']
 })
 export class CrisisRoomComponent implements OnInit, OnDestroy {
+  // Pestañas de Navegación Táctica de MFE1
+  public seccionActiva = signal<'CRISIS' | 'SAGA' | 'REPORTES'>('CRISIS');
+
+  // Tipo de vista en Sala de Crisis: Tablero Kanban vs Tabla Táctica
+  public tipoVista = signal<'KANBAN' | 'TABLA'>('KANBAN');
+
   // Lista reactiva de incidentes usando Angular Signals
   public incidentes = signal<Incidente[]>([]);
   public camiones = signal<CamionOption[]>([]);
+  public sagaLogs = signal<TransaccionSagaItem[]>([]);
   public estaConectadoWs = signal<boolean>(false);
   public cargando = signal<boolean>(false);
   public mensajeToast = signal<{ tipo: 'info' | 'success' | 'danger'; texto: string } | null>(null);
@@ -27,11 +43,26 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
   public filtroTexto = signal<string>('');
   public filtroRiesgo = signal<string>('TODOS');
 
-  // Paginación estándar (15 registros por página según contrato)
+  // Paginación para vista de tabla (15 registros por página)
   public readonly elementosPorPagina = 15;
   public paginaActual = signal<number>(1);
 
-  // Modal Human-in-the-Loop de Aprobación de Despacho
+  // Panel Lateral / Modal de Detalle de Incidente
+  public modalDetalleAbierto = signal<boolean>(false);
+  public incidenteDetalle = signal<Incidente | null>(null);
+  public timelineDetalle = signal<HistorialTimelineItem[]>([]);
+  public despachosDetalle = signal<DespachoUnidadItem[]>([]);
+  public cargandoDetalle = signal<boolean>(false);
+
+  // Modal de Transición de Estado (PATCH /api/v1/incidentes/{id}/estado)
+  public modalCambioEstadoAbierto = signal<boolean>(false);
+  public nuevoEstadoSeleccionado = signal<EstadoIncidente>('EN_COMBATE');
+  public novedadTexto = signal<string>('');
+  public nivelAguaActual = signal<number | undefined>(undefined);
+  public enviandoCambioEstado = signal<boolean>(false);
+  public errorCambioEstado = signal<string | null>(null);
+
+  // Modal Human-in-the-Loop de Aprobación de Despacho SAGA
   public modalDespachoAbierto = signal<boolean>(false);
   public incidenteSeleccionado = signal<Incidente | null>(null);
   public camionSeleccionadoId = signal<string>('');
@@ -39,28 +70,50 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
   public notasOperativas = signal<string>('');
   public enviandoDespacho = signal<boolean>(false);
   public errorDespachoModal = signal<string | null>(null);
-  public erroresCampos = signal<{ camion?: string; espumogeno?: string }>({});
+  public erroresCampos = signal<{ camion?: string; espumogeno?: string; novedad?: string }>({});
 
   private subs = new Subscription();
 
-  // Computed signals
+  // Lista de incidentes filtrada
   public incidentesFiltrados = computed(() => {
     const texto = this.filtroTexto().toLowerCase().trim();
     const riesgo = this.filtroRiesgo();
 
     return this.incidentes().filter(inc => {
-      const coincideTexto = !texto ||
+      const coincideTexto =
+        !texto ||
         inc.codigo.toLowerCase().includes(texto) ||
         inc.titulo.toLowerCase().includes(texto) ||
         inc.cuadrante.toLowerCase().includes(texto) ||
         inc.direccion.toLowerCase().includes(texto);
 
       const coincideRiesgo = riesgo === 'TODOS' || inc.nivelRiesgo === riesgo;
-
       return coincideTexto && coincideRiesgo;
     });
   });
 
+  // Columnas Kanban: Ordenadas con tarjetas críticas arriba/adelante
+  public columnaPendiente = computed(() => {
+    return this.ordenarPorRiesgo(this.incidentesFiltrados().filter(i => i.estado === 'PENDIENTE'));
+  });
+
+  public columnaDespachado = computed(() => {
+    return this.ordenarPorRiesgo(this.incidentesFiltrados().filter(i => i.estado === 'DESPACHADO'));
+  });
+
+  public columnaEnCombate = computed(() => {
+    return this.ordenarPorRiesgo(this.incidentesFiltrados().filter(i => i.estado === 'EN_COMBATE'));
+  });
+
+  public columnaControlado = computed(() => {
+    return this.ordenarPorRiesgo(this.incidentesFiltrados().filter(i => i.estado === 'CONTROLADO'));
+  });
+
+  public columnaCerrado = computed(() => {
+    return this.ordenarPorRiesgo(this.incidentesFiltrados().filter(i => i.estado === 'CERRADO'));
+  });
+
+  // Paginación de tabla
   public totalPaginas = computed(() => {
     return Math.max(1, Math.ceil(this.incidentesFiltrados().length / this.elementosPorPagina));
   });
@@ -72,6 +125,26 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
 
   public kpis = computed<KpiCrisis>(() => {
     return this.despachoService.calcularKpis(this.incidentes());
+  });
+
+  // Reglas de negocio para transiciones de estado válidas según ms1_comandos_backend
+  public estadosSiguientesValidos = computed<EstadoIncidente[]>(() => {
+    const inc = this.incidenteDetalle();
+    if (!inc) return [];
+
+    switch (inc.estado) {
+      case 'PENDIENTE':
+        return ['DESPACHADO'];
+      case 'DESPACHADO':
+        return ['EN_COMBATE'];
+      case 'EN_COMBATE':
+        return ['CONTROLADO'];
+      case 'CONTROLADO':
+        return ['CERRADO'];
+      case 'CERRADO':
+      default:
+        return [];
+    }
   });
 
   constructor(
@@ -113,6 +186,14 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
         }
       })
     );
+
+    this.subs.add(
+      this.despachoService.obtenerHistorialSaga().subscribe({
+        next: (logs) => {
+          this.sagaLogs.set(logs);
+        }
+      })
+    );
   }
 
   private suscribirWebSockets(): void {
@@ -125,7 +206,7 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
     this.subs.add(
       this.socketService.onIncidenteCreado$.subscribe(nuevo => {
         this.incidentes.update(actuales => [nuevo, ...actuales]);
-        this.mostrarToast('danger', `Nuevo incidente reportado: ${nuevo.codigo} - ${nuevo.titulo}`);
+        this.mostrarToast('danger', `Alarma ingresada: ${nuevo.codigo} - ${nuevo.titulo}`);
       })
     );
 
@@ -146,13 +227,131 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
       this.socketService.onEstadoCambiado$.subscribe(cambio => {
         this.incidentes.update(actuales =>
           actuales.map(inc =>
-            inc.id === cambio.incidenteId ? { ...inc, estado: cambio.estado as any } : inc
+            inc.id === cambio.incidenteId ? { ...inc, estado: cambio.estado as EstadoIncidente } : inc
           )
         );
       })
     );
   }
 
+  /**
+   * Ordena incidentes priorizando los de riesgo CRÍTICO, luego ALERTA y finalmente CONTROLADO
+   */
+  private ordenarPorRiesgo(items: Incidente[]): Incidente[] {
+    const peso: Record<string, number> = {
+      CRITICO: 3,
+      ALERTA: 2,
+      CONTROLADO: 1
+    };
+    return [...items].sort((a, b) => (peso[b.nivelRiesgo] || 0) - (peso[a.nivelRiesgo] || 0));
+  }
+
+  // =========================================================================
+  // DETALLE DE INCIDENTE, UNIDADES Y TIMELINE
+  // =========================================================================
+  public abrirDetalle(incidente: Incidente): void {
+    this.incidenteDetalle.set(incidente);
+    this.modalDetalleAbierto.set(true);
+    this.cargandoDetalle.set(true);
+
+    this.despachoService.obtenerTimeline(incidente.id).subscribe({
+      next: (timeline) => {
+        this.timelineDetalle.set(timeline);
+      }
+    });
+
+    this.despachoService.obtenerDespachos(incidente.id).subscribe({
+      next: (despachos) => {
+        this.despachosDetalle.set(despachos);
+        this.cargandoDetalle.set(false);
+      },
+      error: () => {
+        this.cargandoDetalle.set(false);
+      }
+    });
+  }
+
+  public cerrarDetalle(): void {
+    this.modalDetalleAbierto.set(false);
+    this.incidenteDetalle.set(null);
+    this.timelineDetalle.set([]);
+    this.despachosDetalle.set([]);
+  }
+
+  // =========================================================================
+  // CAMBIO DE ESTADO DEL SINIESTRO (PATCH /incidentes/{id}/estado)
+  // =========================================================================
+  public abrirModalCambioEstado(): void {
+    const inc = this.incidenteDetalle();
+    if (!inc) return;
+
+    const validos = this.estadosSiguientesValidos();
+    if (validos.length > 0) {
+      this.nuevoEstadoSeleccionado.set(validos[0]);
+    }
+    this.novedadTexto.set('');
+    this.nivelAguaActual.set(inc.litrosAguaEstimados);
+    this.errorCambioEstado.set(null);
+    this.modalCambioEstadoAbierto.set(true);
+  }
+
+  public cerrarModalCambioEstado(): void {
+    if (this.enviandoCambioEstado()) return;
+    this.modalCambioEstadoAbierto.set(false);
+    this.errorCambioEstado.set(null);
+  }
+
+  public ejecutarCambioEstado(): void {
+    const inc = this.incidenteDetalle();
+    const nuevoEstado = this.nuevoEstadoSeleccionado();
+    const novedad = this.novedadTexto().trim();
+    const nivelAgua = this.nivelAguaActual();
+
+    if (!inc) return;
+
+    if (!novedad) {
+      this.errorCambioEstado.set('Debe ingresar un texto de novedad para la bitácora inmutable.');
+      return;
+    }
+
+    this.enviandoCambioEstado.set(true);
+    this.errorCambioEstado.set(null);
+
+    this.despachoService.cambiarEstado(inc.id, nuevoEstado, novedad, nivelAgua).subscribe({
+      next: () => {
+        this.enviandoCambioEstado.set(false);
+        this.modalCambioEstadoAbierto.set(false);
+
+        // Actualizar estado en lista principal
+        this.incidentes.update(actuales =>
+          actuales.map(item =>
+            item.id === inc.id ? { ...item, estado: nuevoEstado, updatedAt: new Date().toISOString() } : item
+          )
+        );
+
+        // Actualizar detalle abierto
+        if (this.incidenteDetalle()?.id === inc.id) {
+          this.incidenteDetalle.update(curr => curr ? { ...curr, estado: nuevoEstado } : null);
+        }
+
+        // Recargar timeline
+        this.despachoService.obtenerTimeline(inc.id).subscribe({
+          next: (tl) => this.timelineDetalle.set(tl)
+        });
+
+        this.mostrarToast('success', `Estado actualizado a ${nuevoEstado} para el siniestro ${inc.codigo}`);
+      },
+      error: (err) => {
+        this.enviandoCambioEstado.set(false);
+        // REGLA INVIOLABLE: No cerrar modal ante error
+        this.errorCambioEstado.set(err.message || 'Error al cambiar estado del siniestro');
+      }
+    });
+  }
+
+  // =========================================================================
+  // GOBERNANZA HUMAN-IN-THE-LOOP (DESPACHO SAGA)
+  // =========================================================================
   public abrirModalDespacho(incidente: Incidente): void {
     this.incidenteSeleccionado.set(incidente);
     this.errorDespachoModal.set(null);
@@ -181,7 +380,6 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
     const camionId = this.camionSeleccionadoId();
     const litros = this.litrosEspumogeno();
 
-    // Validación inline en letras rojas
     const errores: { camion?: string; espumogeno?: string } = {};
 
     if (!camionId) {
@@ -220,10 +418,20 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
         this.incidentes.update(actuales =>
           actuales.map(item =>
             item.id === inc!.id
-              ? { ...item, estado: 'DESPACHADO', camionAsignado: camionId }
+              ? { ...item, estado: 'DESPACHADO', camionAsignado: camionId, unidadesAsignadas: (item.unidadesAsignadas || 0) + 1 }
               : item
           )
         );
+
+        // Si el detalle estaba abierto, refrescar
+        if (this.incidenteDetalle()?.id === inc!.id) {
+          this.abrirDetalle(this.incidentes().find(i => i.id === inc!.id)!);
+        }
+
+        // Recargar logs de SAGA
+        this.despachoService.obtenerHistorialSaga().subscribe({
+          next: (logs) => this.sagaLogs.set(logs)
+        });
 
         this.mostrarToast(
           'success',
@@ -261,10 +469,31 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
 
   public claseBadgeRiesgo(nivel: NivelRiesgo): string {
     switch (nivel) {
-      case 'CRITICO': return 'badge-fire-critical';
-      case 'ALERTA': return 'badge-fire-warning';
-      case 'CONTROLADO': return 'badge-fire-success';
-      default: return 'badge-fire-neutral';
+      case 'CRITICO':
+        return 'badge-fire-critical';
+      case 'ALERTA':
+        return 'badge-fire-warning';
+      case 'CONTROLADO':
+        return 'badge-fire-success';
+      default:
+        return 'badge-fire-neutral';
+    }
+  }
+
+  public claseBadgeEstado(estado: EstadoIncidente | string): string {
+    switch (estado) {
+      case 'PENDIENTE':
+        return 'badge-fire-warning';
+      case 'DESPACHADO':
+        return 'badge-fire-info';
+      case 'EN_COMBATE':
+        return 'badge-fire-critical';
+      case 'CONTROLADO':
+        return 'badge-fire-success';
+      case 'CERRADO':
+        return 'badge-fire-neutral';
+      default:
+        return 'badge-fire-neutral';
     }
   }
 

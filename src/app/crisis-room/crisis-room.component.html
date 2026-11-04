@@ -1,4 +1,4 @@
-<div class="crisis-dashboard">
+<div class="mfe1-layout">
   <!-- Toast flotante de notificación de emergencias -->
   <div *ngIf="mensajeToast()" class="toast-notification" [ngClass]="'toast-' + mensajeToast()!.tipo">
     <i class="bi" [ngClass]="{
@@ -12,219 +12,837 @@
     </button>
   </div>
 
-  <!-- Cabecera de la Sala de Crisis con Estado WebSocket -->
-  <header class="crisis-header">
-    <div class="header-titles">
-      <h1 class="header-title">
-        <i class="bi bi-broadcast-pin text-primary-fire"></i>
-        SALA DE CRISIS Y DESPACHO TÁCTICO
-      </h1>
-      <p class="header-subtitle font-tactical-mono">
-        CENTRAL 119 SANTA CRUZ &bull; CONTROL REACTIVO EN TIEMPO REAL
-      </p>
+  <!-- Barra de Navegación Interna / Sub-Bar Táctica de MFE1 -->
+  <nav class="sub-navbar-tactical">
+    <div class="sub-nav-brand">
+      <i class="bi bi-shield-fill-check text-primary-fire"></i>
+      <span class="sub-nav-title">PANEL DE COMANDOS CENTRAL 119</span>
     </div>
 
-    <div class="header-status-badge">
-      <a routerLink="/reportes" class="btn-fire-outline btn-sm">
-        <i class="bi bi-cpu"></i> Generar Reportes IA
-      </a>
-      <span *ngIf="estaConectadoWs()" class="badge-fire badge-fire-success">
-        <i class="bi bi-reception-4"></i> EN VIVO WSS (PUERTO 3000)
-      </span>
-      <span *ngIf="!estaConectadoWs()" class="badge-fire badge-fire-warning">
-        <i class="bi bi-arrow-repeat"></i> CONECTANDO CON GATEWAY...
-      </span>
-    </div>
-  </header>
+    <div class="sub-nav-tabs">
+      <button
+        class="tab-btn"
+        [class.tab-btn-active]="seccionActiva() === 'CRISIS'"
+        (click)="seccionActiva.set('CRISIS')"
+      >
+        <i class="bi bi-kanban"></i> Sala de Crisis &amp; Incidentes
+      </button>
 
-  <!-- Tarjetas KPI Tácticas en Vivo -->
-  <section class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-icon-wrapper kpi-icon-critical">
-        <i class="bi bi-fire"></i>
-      </div>
-      <div class="kpi-data">
-        <span class="kpi-label">INCIDENTES ACTIVOS</span>
-        <span class="kpi-value font-tactical-mono">{{ kpis().incidentesActivos }}</span>
-      </div>
-    </div>
+      <button
+        class="tab-btn"
+        [class.tab-btn-active]="seccionActiva() === 'SAGA'"
+        (click)="seccionActiva.set('SAGA')"
+      >
+        <i class="bi bi-diagram-3"></i> Transacciones SAGA
+      </button>
 
-    <div class="kpi-card">
-      <div class="kpi-icon-wrapper kpi-icon-truck">
-        <i class="bi bi-truck"></i>
-      </div>
-      <div class="kpi-data">
-        <span class="kpi-label">UNIDADES EN COMBATE</span>
-        <span class="kpi-value font-tactical-mono">{{ kpis().camionesEnCombate }}</span>
-      </div>
-    </div>
-
-    <div class="kpi-card">
-      <div class="kpi-icon-wrapper kpi-icon-water">
-        <i class="bi bi-droplet-fill"></i>
-      </div>
-      <div class="kpi-data">
-        <span class="kpi-label">HIDRANTES EN SERVICIO</span>
-        <span class="kpi-value font-tactical-mono">{{ kpis().hidrantesOperativos }} / 45</span>
-      </div>
-    </div>
-
-    <div class="kpi-card">
-      <div class="kpi-icon-wrapper kpi-icon-reserve">
-        <i class="bi bi-shield-check"></i>
-      </div>
-      <div class="kpi-data">
-        <span class="kpi-label">AGUA TÁCTICA DISPONIBLE</span>
-        <span class="kpi-value font-tactical-mono">{{ kpis().litrosAguaDisponibles | number }} L</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Barra de Filtros y Búsqueda Rápida -->
-  <section class="filter-toolbar">
-    <div class="search-box">
-      <i class="bi bi-search search-icon"></i>
-      <input
-        type="text"
-        class="input-tactical"
-        placeholder="Buscar por código, calle o cuadrante..."
-        [ngModel]="filtroTexto()"
-        (ngModelChange)="filtroTexto.set($event); paginaActual.set(1)"
-      />
-    </div>
-
-    <div class="filter-actions">
-      <div class="select-wrapper">
-        <label class="filter-label">Nivel de Riesgo:</label>
-        <select
-          class="select-tactical"
-          [ngModel]="filtroRiesgo()"
-          (ngModelChange)="filtroRiesgo.set($event); paginaActual.set(1)"
-        >
-          <option value="TODOS">Todos los Niveles</option>
-          <option value="CRITICO">Crítico (Rojo)</option>
-          <option value="ALERTA">Alerta (Ámbar)</option>
-          <option value="CONTROLADO">Controlado (Verde)</option>
-        </select>
-      </div>
-
-      <button class="btn-fire-outline" (click)="limpiarFiltros()">
-        <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+      <button
+        class="tab-btn"
+        [class.tab-btn-active]="seccionActiva() === 'REPORTES'"
+        (click)="seccionActiva.set('REPORTES')"
+      >
+        <i class="bi bi-cpu"></i> Reportes Multimodales IA
       </button>
     </div>
-  </section>
 
-  <!-- Tabla de Incidentes Activos -->
-  <section class="table-container">
-    <div class="table-responsive">
-      <table class="table-tactical">
-        <thead>
-          <tr>
-            <th style="width: 110px;">CÓDIGO</th>
-            <th style="width: 90px;">HORA</th>
-            <th>TIPO &amp; DESCRIPCIÓN DEL SINIESTRO</th>
-            <th style="width: 220px;">CUADRANTE / DIRECCIÓN</th>
-            <th style="width: 140px;">RIESGO</th>
-            <th style="width: 130px;">ESTADO</th>
-            <th style="width: 170px;" class="text-right">GOBERNANZA</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let inc of incidentesPaginados()" [class.row-critical]="inc.nivelRiesgo === 'CRITICO'">
-            <td class="font-tactical-mono font-bold">{{ inc.codigo }}</td>
-            <td class="font-tactical-mono text-muted">{{ inc.horaReporte }}</td>
-            <td>
-              <div class="incident-cell">
-                <span class="incident-title">{{ inc.titulo }}</span>
-                <span class="incident-desc text-muted">{{ inc.descripcion }}</span>
-              </div>
-            </td>
-            <td>
-              <div class="location-cell">
-                <span class="font-bold text-dark">{{ inc.cuadrante }}</span>
-                <span class="text-muted text-xs">{{ inc.direccion }}</span>
-              </div>
-            </td>
-            <td>
-              <span class="badge-fire" [ngClass]="claseBadgeRiesgo(inc.nivelRiesgo)">
-                <i class="bi" [ngClass]="{
-                  'bi-exclamation-octagon-fill': inc.nivelRiesgo === 'CRITICO',
-                  'bi-exclamation-triangle-fill': inc.nivelRiesgo === 'ALERTA',
-                  'bi-check-circle-fill': inc.nivelRiesgo === 'CONTROLADO'
-                }"></i>
-                {{ inc.nivelRiesgo }}
-              </span>
-            </td>
-            <td>
-              <span class="badge-fire badge-fire-neutral font-tactical-mono">
-                {{ inc.camionAsignado ? inc.camionAsignado : inc.estado }}
-              </span>
-            </td>
-            <td class="text-right">
-              <!-- Botón Primario Human-in-the-Loop -->
-              <button
-                *ngIf="inc.estado !== 'DESPACHADO' && inc.estado !== 'CONTROLADO'"
-                class="btn-fire-primary btn-sm"
-                (click)="abrirModalDespacho(inc)"
-              >
-                <i class="bi bi-send-fill"></i> Aprobar Despacho
-              </button>
-
-              <span *ngIf="inc.estado === 'DESPACHADO'" class="badge-fire badge-fire-warning">
-                <i class="bi bi-truck"></i> EN CAMINO
-              </span>
-
-              <span *ngIf="inc.estado === 'CONTROLADO'" class="badge-fire badge-fire-success">
-                <i class="bi bi-check2"></i> ASEGURADO
-              </span>
-            </td>
-          </tr>
-
-          <tr *ngIf="incidentesPaginados().length === 0">
-            <td colspan="7" class="empty-state">
-              <i class="bi bi-inbox text-muted"></i>
-              <p>No se encontraron siniestros que coincidan con los filtros aplicados.</p>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="sub-nav-status">
+      <span *ngIf="estaConectadoWs()" class="badge-fire badge-fire-success font-tactical-mono">
+        <i class="bi bi-reception-4"></i> WSS ACTIVO (3000)
+      </span>
+      <span *ngIf="!estaConectadoWs()" class="badge-fire badge-fire-warning font-tactical-mono">
+        <i class="bi bi-arrow-repeat"></i> CONECTANDO...
+      </span>
     </div>
+  </nav>
 
-    <!-- Paginación Estándar de 15 Registros -->
-    <footer class="table-pagination">
-      <div class="pagination-info text-muted">
-        Mostrando {{ (paginaActual() - 1) * elementosPorPagina + 1 }}–{{
-          paginaActual() * elementosPorPagina > incidentesFiltrados().length
-            ? incidentesFiltrados().length
-            : paginaActual() * elementosPorPagina
-        }} de {{ incidentesFiltrados().length }} incidentes
+  <!-- ======================================================================= -->
+  <!-- SECCIÓN 1: SALA DE CRISIS (TABLERO KANBAN / TABLA TÁCTICA)               -->
+  <!-- ======================================================================= -->
+  <div *ngIf="seccionActiva() === 'CRISIS'" class="crisis-dashboard">
+    <!-- Cabecera de Sala de Crisis -->
+    <header class="crisis-header">
+      <div class="header-titles">
+        <h1 class="header-title">
+          <i class="bi bi-broadcast-pin text-primary-fire"></i>
+          SALA DE CRISIS Y DESPACHO TÁCTICO
+        </h1>
       </div>
 
-      <div class="pagination-controls">
+      <!-- Selector de Vista: Tablero Kanban vs Tabla Táctica -->
+      <div class="view-switch-group">
         <button
-          class="btn-page"
-          [disabled]="paginaActual() === 1"
-          (click)="cambiarPagina(paginaActual() - 1)"
+          class="btn-view-toggle"
+          [class.btn-view-active]="tipoVista() === 'KANBAN'"
+          (click)="tipoVista.set('KANBAN')"
+          title="Ver en formato Tablero Kanban"
         >
-          <i class="bi bi-chevron-left"></i> Anterior
+          <i class="bi bi-kanban"></i> Tablero Kanban
         </button>
-
-        <span class="page-indicator font-tactical-mono">
-          Página {{ paginaActual() }} de {{ totalPaginas() }}
-        </span>
-
         <button
-          class="btn-page"
-          [disabled]="paginaActual() === totalPaginas()"
-          (click)="cambiarPagina(paginaActual() + 1)"
+          class="btn-view-toggle"
+          [class.btn-view-active]="tipoVista() === 'TABLA'"
+          (click)="tipoVista.set('TABLA')"
+          title="Ver en formato Tabla Táctica"
         >
-          Siguiente <i class="bi bi-chevron-right"></i>
+          <i class="bi bi-table"></i> Tabla Táctica
         </button>
       </div>
-    </footer>
-  </section>
+    </header>
 
-  <!-- MODAL DE GOBERNANZA HUMAN-IN-THE-LOOP (APROBAR DESPACHO) -->
+    <!-- Tarjetas KPI Tácticas en Vivo -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper kpi-icon-critical">
+          <i class="bi bi-fire"></i>
+        </div>
+        <div class="kpi-data">
+          <span class="kpi-label">INCIDENTES ACTIVOS</span>
+          <span class="kpi-value font-tactical-mono">{{ kpis().incidentesActivos }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper kpi-icon-truck">
+          <i class="bi bi-truck"></i>
+        </div>
+        <div class="kpi-data">
+          <span class="kpi-label">UNIDADES EN COMBATE</span>
+          <span class="kpi-value font-tactical-mono">{{ kpis().camionesEnCombate }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper kpi-icon-water">
+          <i class="bi bi-droplet-fill"></i>
+        </div>
+        <div class="kpi-data">
+          <span class="kpi-label">HIDRANTES EN SERVICIO</span>
+          <span class="kpi-value font-tactical-mono">{{ kpis().hidrantesOperativos }} / 45</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper kpi-icon-reserve">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <div class="kpi-data">
+          <span class="kpi-label">AGUA TÁCTICA DISPONIBLE</span>
+          <span class="kpi-value font-tactical-mono">{{ kpis().litrosAguaDisponibles | number }} L</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Barra de Filtros y Búsqueda Rápida -->
+    <section class="filter-toolbar">
+      <div class="search-box">
+        <i class="bi bi-search search-icon"></i>
+        <input
+          type="text"
+          class="input-tactical"
+          placeholder="Buscar por código, cuadrante o calle..."
+          [ngModel]="filtroTexto()"
+          (ngModelChange)="filtroTexto.set($event); paginaActual.set(1)"
+        />
+      </div>
+
+      <div class="filter-actions">
+        <div class="select-wrapper">
+          <label class="filter-label">Filtrar Riesgo:</label>
+          <select
+            class="select-tactical"
+            [ngModel]="filtroRiesgo()"
+            (ngModelChange)="filtroRiesgo.set($event); paginaActual.set(1)"
+          >
+            <option value="TODOS">Todos los Niveles</option>
+            <option value="CRITICO">Crítico (Rojo)</option>
+            <option value="ALERTA">Alerta (Ámbar)</option>
+            <option value="CONTROLADO">Controlado (Verde)</option>
+          </select>
+        </div>
+
+        <button class="btn-fire-outline" (click)="limpiarFiltros()">
+          <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+        </button>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA A: TABLERO KANBAN DIVIDIDO POR ESTADO DEL SINIESTRO             -->
+    <!-- ===================================================================== -->
+    <section *ngIf="tipoVista() === 'KANBAN'" class="kanban-board-container">
+      <div class="kanban-grid">
+        <!-- Columna 1: PENDIENTE -->
+        <div class="kanban-column column-pendiente">
+          <header class="column-header">
+            <div class="column-title-group">
+              <span class="column-dot dot-warning"></span>
+              <h3 class="column-title">PENDIENTE</h3>
+            </div>
+            <span class="column-counter font-tactical-mono">{{ columnaPendiente().length }}</span>
+          </header>
+
+          <div class="column-body">
+            <div
+              *ngFor="let inc of columnaPendiente()"
+              class="kanban-card"
+              [class.card-critical]="inc.nivelRiesgo === 'CRITICO'"
+              (click)="abrirDetalle(inc)"
+            >
+              <div class="card-top-row">
+                <span class="card-code font-tactical-mono">{{ inc.codigo }}</span>
+                <span class="badge-fire" [ngClass]="claseBadgeRiesgo(inc.nivelRiesgo)">
+                  {{ inc.nivelRiesgo }}
+                </span>
+              </div>
+              <h4 class="card-title">{{ inc.titulo }}</h4>
+              <p class="card-address text-muted">
+                <i class="bi bi-geo-alt"></i> {{ inc.direccion }}
+              </p>
+              <div class="card-footer-row font-tactical-mono">
+                <span><i class="bi bi-clock"></i> {{ inc.horaReporte }}</span>
+                <span class="text-primary-fire font-bold">{{ inc.tipo }}</span>
+              </div>
+              <div class="card-actions-quick" (click)="$event.stopPropagation()">
+                <button class="btn-fire-primary btn-xs w-100" (click)="abrirModalDespacho(inc)">
+                  <i class="bi bi-send-fill"></i> Aprobar Despacho
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="columnaPendiente().length === 0" class="empty-column-box">
+              <i class="bi bi-check2-circle text-muted"></i>
+              <span>Sin siniestros pendientes</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna 2: DESPACHADO -->
+        <div class="kanban-column column-despachado">
+          <header class="column-header">
+            <div class="column-title-group">
+              <span class="column-dot dot-info"></span>
+              <h3 class="column-title">DESPACHADO</h3>
+            </div>
+            <span class="column-counter font-tactical-mono">{{ columnaDespachado().length }}</span>
+          </header>
+
+          <div class="column-body">
+            <div
+              *ngFor="let inc of columnaDespachado()"
+              class="kanban-card"
+              [class.card-critical]="inc.nivelRiesgo === 'CRITICO'"
+              (click)="abrirDetalle(inc)"
+            >
+              <div class="card-top-row">
+                <span class="card-code font-tactical-mono">{{ inc.codigo }}</span>
+                <span class="badge-fire" [ngClass]="claseBadgeRiesgo(inc.nivelRiesgo)">
+                  {{ inc.nivelRiesgo }}
+                </span>
+              </div>
+              <h4 class="card-title">{{ inc.titulo }}</h4>
+              <p class="card-address text-muted">
+                <i class="bi bi-geo-alt"></i> {{ inc.cuadrante }}
+              </p>
+              <div class="truck-pill-row font-tactical-mono">
+                <span class="truck-pill">
+                  <i class="bi bi-truck text-primary-fire"></i> {{ inc.camionAsignado || 'En Camino' }}
+                </span>
+                <span>{{ inc.horaReporte }}</span>
+              </div>
+            </div>
+
+            <div *ngIf="columnaDespachado().length === 0" class="empty-column-box">
+              <i class="bi bi-truck text-muted"></i>
+              <span>Sin unidades en ruta</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna 3: EN COMBATE -->
+        <div class="kanban-column column-combate">
+          <header class="column-header">
+            <div class="column-title-group">
+              <span class="column-dot dot-danger"></span>
+              <h3 class="column-title">EN COMBATE</h3>
+            </div>
+            <span class="column-counter font-tactical-mono">{{ columnaEnCombate().length }}</span>
+          </header>
+
+          <div class="column-body">
+            <div
+              *ngFor="let inc of columnaEnCombate()"
+              class="kanban-card"
+              [class.card-critical]="inc.nivelRiesgo === 'CRITICO'"
+              (click)="abrirDetalle(inc)"
+            >
+              <div class="card-top-row">
+                <span class="card-code font-tactical-mono">{{ inc.codigo }}</span>
+                <span class="badge-fire" [ngClass]="claseBadgeRiesgo(inc.nivelRiesgo)">
+                  {{ inc.nivelRiesgo }}
+                </span>
+              </div>
+              <h4 class="card-title">{{ inc.titulo }}</h4>
+              <p class="card-address text-muted">
+                <i class="bi bi-geo-alt"></i> {{ inc.direccion }}
+              </p>
+              <div class="truck-pill-row font-tactical-mono">
+                <span class="truck-pill truck-combate">
+                  <i class="bi bi-fire"></i> EN OPERACIONES
+                </span>
+                <span>{{ inc.camionAsignado }}</span>
+              </div>
+            </div>
+
+            <div *ngIf="columnaEnCombate().length === 0" class="empty-column-box">
+              <i class="bi bi-shield-check text-muted"></i>
+              <span>Sin combate activo</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna 4: CONTROLADO -->
+        <div class="kanban-column column-controlado">
+          <header class="column-header">
+            <div class="column-title-group">
+              <span class="column-dot dot-success"></span>
+              <h3 class="column-title">CONTROLADO</h3>
+            </div>
+            <span class="column-counter font-tactical-mono">{{ columnaControlado().length }}</span>
+          </header>
+
+          <div class="column-body">
+            <div
+              *ngFor="let inc of columnaControlado()"
+              class="kanban-card"
+              (click)="abrirDetalle(inc)"
+            >
+              <div class="card-top-row">
+                <span class="card-code font-tactical-mono">{{ inc.codigo }}</span>
+                <span class="badge-fire badge-fire-success">
+                  <i class="bi bi-check2"></i> CONTROLADO
+                </span>
+              </div>
+              <h4 class="card-title">{{ inc.titulo }}</h4>
+              <p class="card-address text-muted">
+                <i class="bi bi-geo-alt"></i> {{ inc.cuadrante }}
+              </p>
+              <div class="card-footer-row font-tactical-mono text-muted text-xs">
+                <span>Fase de enfriamiento</span>
+                <span>{{ inc.horaReporte }}</span>
+              </div>
+            </div>
+
+            <div *ngIf="columnaControlado().length === 0" class="empty-column-box">
+              <i class="bi bi-hourglass-split text-muted"></i>
+              <span>Sin siniestros controlados</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna 5: CERRADO -->
+        <div class="kanban-column column-cerrado">
+          <header class="column-header">
+            <div class="column-title-group">
+              <span class="column-dot dot-neutral"></span>
+              <h3 class="column-title">CERRADO</h3>
+            </div>
+            <span class="column-counter font-tactical-mono">{{ columnaCerrado().length }}</span>
+          </header>
+
+          <div class="column-body">
+            <div
+              *ngFor="let inc of columnaCerrado()"
+              class="kanban-card card-dimmed"
+              (click)="abrirDetalle(inc)"
+            >
+              <div class="card-top-row">
+                <span class="card-code font-tactical-mono">{{ inc.codigo }}</span>
+                <span class="badge-fire badge-fire-neutral font-tactical-mono">
+                  FINALIZADO
+                </span>
+              </div>
+              <h4 class="card-title">{{ inc.titulo }}</h4>
+              <p class="card-address text-muted">
+                <i class="bi bi-geo-alt"></i> {{ inc.cuadrante }}
+              </p>
+              <div class="card-footer-row font-tactical-mono text-muted text-xs">
+                <span>Auditado en Bitácora</span>
+                <span><i class="bi bi-archive-fill"></i></span>
+              </div>
+            </div>
+
+            <div *ngIf="columnaCerrado().length === 0" class="empty-column-box">
+              <i class="bi bi-inbox text-muted"></i>
+              <span>Sin siniestros cerrados</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA B: TABLA TÁCTICA TRADICIONAL                                    -->
+    <!-- ===================================================================== -->
+    <section *ngIf="tipoVista() === 'TABLA'" class="table-container">
+      <div class="table-responsive">
+        <table class="table-tactical">
+          <thead>
+            <tr>
+              <th style="width: 110px;">CÓDIGO</th>
+              <th style="width: 90px;">HORA</th>
+              <th>TIPO &amp; DESCRIPCIÓN DEL SINIESTRO</th>
+              <th style="width: 220px;">CUADRANTE / DIRECCIÓN</th>
+              <th style="width: 130px;">RIESGO</th>
+              <th style="width: 140px;">ESTADO</th>
+              <th style="width: 180px;" class="text-right">GOBERNANZA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let inc of incidentesPaginados()"
+              [class.row-critical]="inc.nivelRiesgo === 'CRITICO'"
+              (click)="abrirDetalle(inc)"
+              style="cursor: pointer;"
+            >
+              <td class="font-tactical-mono font-bold">{{ inc.codigo }}</td>
+              <td class="font-tactical-mono text-muted">{{ inc.horaReporte }}</td>
+              <td>
+                <div class="incident-cell">
+                  <span class="incident-title">{{ inc.titulo }}</span>
+                  <span class="incident-desc text-muted">{{ inc.descripcion }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="location-cell">
+                  <span class="font-bold text-dark">{{ inc.cuadrante }}</span>
+                  <span class="text-muted text-xs">{{ inc.direccion }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="badge-fire" [ngClass]="claseBadgeRiesgo(inc.nivelRiesgo)">
+                  {{ inc.nivelRiesgo }}
+                </span>
+              </td>
+              <td>
+                <span class="badge-fire" [ngClass]="claseBadgeEstado(inc.estado)">
+                  {{ inc.estado }}
+                </span>
+              </td>
+              <td class="text-right" (click)="$event.stopPropagation()">
+                <button
+                  *ngIf="inc.estado === 'PENDIENTE'"
+                  class="btn-fire-primary btn-sm"
+                  (click)="abrirModalDespacho(inc)"
+                >
+                  <i class="bi bi-send-fill"></i> Despachar SAGA
+                </button>
+
+                <button
+                  *ngIf="inc.estado !== 'PENDIENTE' && inc.estado !== 'CERRADO'"
+                  class="btn-fire-outline btn-sm"
+                  (click)="abrirDetalle(inc)"
+                >
+                  <i class="bi bi-arrow-repeat"></i> Gestionar
+                </button>
+
+                <span *ngIf="inc.estado === 'CERRADO'" class="badge-fire badge-fire-neutral">
+                  <i class="bi bi-lock-fill"></i> AUDITADO
+                </span>
+              </td>
+            </tr>
+
+            <tr *ngIf="incidentesPaginados().length === 0">
+              <td colspan="7" class="empty-state">
+                <i class="bi bi-inbox text-muted"></i>
+                <p>No se encontraron siniestros que coincidan con los filtros aplicados.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Paginación Estándar de 15 Registros -->
+      <footer class="table-pagination">
+        <div class="pagination-info text-muted">
+          Mostrando {{ (paginaActual() - 1) * elementosPorPagina + 1 }}–{{
+            paginaActual() * elementosPorPagina > incidentesFiltrados().length
+              ? incidentesFiltrados().length
+              : paginaActual() * elementosPorPagina
+          }} de {{ incidentesFiltrados().length }} incidentes
+        </div>
+
+        <div class="pagination-controls">
+          <button
+            class="btn-page"
+            [disabled]="paginaActual() === 1"
+            (click)="cambiarPagina(paginaActual() - 1)"
+          >
+            <i class="bi bi-chevron-left"></i> Anterior
+          </button>
+
+          <span class="page-indicator font-tactical-mono">
+            Página {{ paginaActual() }} de {{ totalPaginas() }}
+          </span>
+
+          <button
+            class="btn-page"
+            [disabled]="paginaActual() === totalPaginas()"
+            (click)="cambiarPagina(paginaActual() + 1)"
+          >
+            Siguiente <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- SECCIÓN 2: MONITOR DE TRANSACCIONES SAGA DISTRIBUIDAS (MS1 - MS2 - MS3) -->
+  <!-- ======================================================================= -->
+  <div *ngIf="seccionActiva() === 'SAGA'" class="saga-dashboard">
+    <header class="saga-header">
+      <div class="header-titles">
+        <h1 class="header-title">
+          <i class="bi bi-diagram-3 text-primary-fire"></i>
+          MONITOR DE ORQUESTACIÓN SAGA (TRANSACCIONES DISTRIBUIDAS)
+        </h1>
+      </div>
+    </header>
+
+    <!-- Diagrama ASCII Explicativo del Patrón SAGA -->
+    <section class="saga-diagram-box font-tactical-mono">
+      <div class="diagram-title">
+        <i class="bi bi-info-circle-fill text-primary-fire"></i>
+        MÁQUINA DE ESTADOS SAGA DEL CUERPO DE BOMBEROS
+      </div>
+      <pre class="ascii-diagram">
++----------------------+        Paso 1: POST /flotas/reservar-camion        +----------------------+
+|                      | -------------------------------------------------> | ms2_flotas_backend   |
+|                      | <------------------------------------------------- | (Spring Boot / GCP)  |
+| ms1_comandos_backend |        Respuesta: Camion B-04 Reservado OK        +----------------------+
+| (Orquestador NestJS) |
+|                      |        Paso 2: GraphQL mutation reservarKit()       +----------------------+
+|                      | -------------------------------------------------> | ms3_inventario_back  |
+|                      | <------------------------------------------------- | (Laravel / Azure)    |
++----------------------+        Si Falla: Compensación POST /liberar-camion +----------------------+
+      </pre>
+    </section>
+
+    <!-- Historial de Transacciones SAGA -->
+    <section class="saga-logs-table-container">
+      <h3 class="section-subtitle">
+        <i class="bi bi-journal-text"></i> Historial de Ejecuciones SAGA en Tiempo Real
+      </h3>
+
+      <div class="table-responsive">
+        <table class="table-tactical">
+          <thead>
+            <tr>
+              <th style="width: 160px;">TRANSACCIÓN SAGA</th>
+              <th style="width: 120px;">INCIDENTE</th>
+              <th style="width: 130px;">CAMIÓN</th>
+              <th style="width: 140px;">PASO 1 (FLOTAS)</th>
+              <th style="width: 160px;">PASO 2 (INVENTARIO)</th>
+              <th style="width: 180px;">ESTADO FINAL</th>
+              <th style="width: 100px;">DURACIÓN</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let saga of sagaLogs()">
+              <td class="font-tactical-mono font-bold">{{ saga.sagaId }}</td>
+              <td class="font-tactical-mono">{{ saga.incidenteId }}</td>
+              <td class="font-tactical-mono">{{ saga.camionId }}</td>
+              <td>
+                <span class="badge-fire" [ngClass]="saga.pasoMs2ReservaCamion === 'OK' ? 'badge-fire-success' : 'badge-fire-warning'">
+                  {{ saga.pasoMs2ReservaCamion }}
+                </span>
+              </td>
+              <td>
+                <span class="badge-fire" [ngClass]="saga.pasoMs3ReservaKit === 'OK' ? 'badge-fire-success' : 'badge-fire-critical'">
+                  {{ saga.pasoMs3ReservaKit }}
+                </span>
+              </td>
+              <td>
+                <span class="badge-fire" [ngClass]="saga.status === 'EXITO' ? 'badge-fire-success' : 'badge-fire-critical'">
+                  {{ saga.status }}
+                </span>
+              </td>
+              <td class="font-tactical-mono text-muted">{{ saga.duracionMs }} ms</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- SECCIÓN 3: REPORTES MULTIMODALES IA (MS-05 VOICE-TO-REPORT)             -->
+  <!-- ======================================================================= -->
+  <div *ngIf="seccionActiva() === 'REPORTES'" class="reports-section-wrapper">
+    <app-reportes></app-reportes>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- PANEL LATERAL OFFCANVAS / MODAL: DETALLES, UNIDADES Y TIMELINE          -->
+  <!-- ======================================================================= -->
+  <div *ngIf="modalDetalleAbierto()" class="modal-backdrop">
+    <div class="offcanvas-panel">
+      <header class="offcanvas-header">
+        <div class="offcanvas-titles">
+          <div class="detail-badge-row">
+            <span class="font-tactical-mono font-bold text-lg">{{ incidenteDetalle()?.codigo }}</span>
+            <span class="badge-fire" [ngClass]="claseBadgeRiesgo(incidenteDetalle()!.nivelRiesgo)">
+              {{ incidenteDetalle()?.nivelRiesgo }}
+            </span>
+            <span class="badge-fire" [ngClass]="claseBadgeEstado(incidenteDetalle()!.estado)">
+              {{ incidenteDetalle()?.estado }}
+            </span>
+          </div>
+          <h2 class="offcanvas-title">{{ incidenteDetalle()?.titulo }}</h2>
+        </div>
+        <button class="modal-close-icon" (click)="cerrarDetalle()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </header>
+
+      <div class="offcanvas-body">
+        <!-- Ficha Resumen de Ubicación y Denunciante -->
+        <section class="detail-card">
+          <h4 class="detail-card-title"><i class="bi bi-geo-alt-fill text-primary-fire"></i> Datos de Ubicación y Alerta</h4>
+          <div class="detail-grid-2">
+            <div>
+              <span class="detail-label">Dirección:</span>
+              <span class="detail-val">{{ incidenteDetalle()?.direccion }}</span>
+            </div>
+            <div>
+              <span class="detail-label">Cuadrante Operativo:</span>
+              <span class="detail-val font-tactical-mono">{{ incidenteDetalle()?.cuadrante }}</span>
+            </div>
+            <div>
+              <span class="detail-label">Tipo de Siniestro:</span>
+              <span class="detail-val font-bold text-primary-fire">{{ incidenteDetalle()?.tipo }}</span>
+            </div>
+            <div>
+              <span class="detail-label">Hora de Reporte:</span>
+              <span class="detail-val font-tactical-mono">{{ incidenteDetalle()?.horaReporte }}</span>
+            </div>
+            <div *ngIf="incidenteDetalle()?.denunciante">
+              <span class="detail-label">Denunciante:</span>
+              <span class="detail-val">{{ incidenteDetalle()?.denunciante?.nombre }} ({{ incidenteDetalle()?.denunciante?.telefono }})</span>
+            </div>
+            <div>
+              <span class="detail-label">Operador Asignado:</span>
+              <span class="detail-val">{{ incidenteDetalle()?.oficialACargo }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Unidades Despachadas al Incidente -->
+        <section class="detail-card">
+          <div class="card-header-flex">
+            <h4 class="detail-card-title">
+              <i class="bi bi-truck text-primary-fire"></i> Unidades y Recursos Asignados
+            </h4>
+            <button
+              *ngIf="incidenteDetalle()?.estado === 'PENDIENTE'"
+              class="btn-fire-primary btn-xs"
+              (click)="abrirModalDespacho(incidenteDetalle()!)"
+            >
+              <i class="bi bi-send-fill"></i> Despachar Unidad
+            </button>
+          </div>
+
+          <div *ngIf="despachosDetalle().length > 0" class="despachos-list">
+            <div *ngFor="let dsp of despachosDetalle()" class="despacho-item-box">
+              <div class="despacho-header-row font-tactical-mono">
+                <span class="font-bold text-dark"><i class="bi bi-truck"></i> {{ dsp.camionId }}</span>
+                <span class="badge-fire badge-fire-info">{{ dsp.estadoDespacho }}</span>
+              </div>
+              <div class="despacho-meta text-xs text-muted">
+                <span>Conductor: {{ dsp.conductorId }}</span> &bull;
+                <span>Salida: {{ dsp.horaDespacho }}</span>
+                <span *ngIf="dsp.horaArribo"> &bull; Arribo: {{ dsp.horaArribo }}</span>
+              </div>
+              <div class="insumos-tags-row">
+                <span *ngFor="let ins of dsp.insumosAsociados" class="insumo-tag">
+                  {{ ins.nombre }}: {{ ins.cantidad }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="despachosDetalle().length === 0" class="empty-detail-state">
+            <i class="bi bi-exclamation-circle text-muted"></i>
+            <p>No se han asignado camiones cisterna a este siniestro aún.</p>
+          </div>
+        </section>
+
+        <!-- Bitácora Inmutable / Timeline de Eventos (/timeline) -->
+        <section class="detail-card">
+          <div class="card-header-flex">
+            <h4 class="detail-card-title">
+              <i class="bi bi-clock-history text-primary-fire"></i> Bitácora Inmutable de Eventos
+            </h4>
+            <button
+              *ngIf="incidenteDetalle()?.estado !== 'CERRADO'"
+              class="btn-fire-outline btn-xs"
+              (click)="abrirModalCambioEstado()"
+            >
+              <i class="bi bi-arrow-repeat"></i> Actualizar Estado
+            </button>
+          </div>
+
+          <div class="timeline-container">
+            <div *ngFor="let evt of timelineDetalle()" class="timeline-item">
+              <div class="timeline-point"></div>
+              <div class="timeline-content">
+                <div class="timeline-header-row font-tactical-mono">
+                  <span class="timeline-status-badge">
+                    {{ evt.estadoAnterior ? evt.estadoAnterior + ' ➔ ' : '' }}{{ evt.estadoNuevo }}
+                  </span>
+                  <span class="text-xs text-muted">{{ evt.timestamp | date:'shortTime' }}</span>
+                </div>
+                <p class="timeline-text">{{ evt.novedadTexto }}</p>
+                <div *ngIf="evt.nivelAguaActual" class="timeline-water font-tactical-mono text-xs text-muted">
+                  <i class="bi bi-droplet-fill text-primary-fire"></i> Nivel de agua cisterna: {{ evt.nivelAguaActual | number }} L
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="timelineDetalle().length === 0" class="empty-detail-state">
+              <p>Sin registros en la bitácora.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="offcanvas-footer">
+        <button type="button" class="btn-fire-outline" (click)="cerrarDetalle()">
+          Cerrar Detalle
+        </button>
+
+        <button
+          *ngIf="incidenteDetalle()?.estado !== 'CERRADO'"
+          type="button"
+          class="btn-fire-primary"
+          (click)="abrirModalCambioEstado()"
+        >
+          <i class="bi bi-arrow-repeat"></i> Actualizar Estado del Siniestro
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL: ACTUALIZAR ESTADO DEL SINIESTRO (PATCH /incidentes/{id}/estado) -->
+  <!-- ======================================================================= -->
+  <div *ngIf="modalCambioEstadoAbierto()" class="modal-backdrop">
+    <div class="modal-dialog">
+      <header class="modal-header">
+        <div class="modal-title-group">
+          <h2 class="modal-title">
+            <i class="bi bi-arrow-repeat text-primary-fire"></i>
+            Actualizar Estado del Siniestro {{ incidenteDetalle()?.codigo }} 
+          </h2>
+        </div>
+        <button class="modal-close-icon" [disabled]="enviandoCambioEstado()" (click)="cerrarModalCambioEstado()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div *ngIf="errorCambioEstado()" class="modal-alert-danger">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span>{{ errorCambioEstado() }}</span>
+        </div>
+
+        <form (ngSubmit)="ejecutarCambioEstado()" class="tactical-form">
+          <div class="form-group">
+            <label class="form-label">Estado Actual:</label>
+            <span class="badge-fire" [ngClass]="claseBadgeEstado(incidenteDetalle()!.estado)">
+              {{ incidenteDetalle()?.estado }}
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="nuevoEstadoSelect">
+              Transicionar al Estado Siguiente: <span class="text-danger">*</span>
+            </label>
+            <select
+              id="nuevoEstadoSelect"
+              class="select-tactical font-tactical-mono"
+              [ngModel]="nuevoEstadoSeleccionado()"
+              (ngModelChange)="nuevoEstadoSeleccionado.set($event)"
+              name="nuevoEstadoSelect"
+            >
+              <option *ngFor="let est of estadosSiguientesValidos()" [value]="est">
+                {{ est }}
+              </option>
+            </select>
+            <div class="text-xs text-muted font-tactical-mono mt-1">
+              PENDIENTE ➔ DESPACHADO ➔ EN_COMBATE ➔ CONTROLADO ➔ CERRADO
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="novedadInput">
+              Novedad Táctica para la Bitácora Inmutable: <span class="text-danger">*</span>
+            </label>
+            <textarea
+              id="novedadInput"
+              rows="3"
+              class="textarea-tactical"
+              placeholder="Describa la acción en terreno (ej: Unidad B-04 ingresando con mangueras de 45mm...)"
+              [ngModel]="novedadTexto()"
+              (ngModelChange)="novedadTexto.set($event)"
+              name="novedadInput"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="aguaInput">
+              Nivel de Agua Actual en Cisterna (Litros, Opcional):
+            </label>
+            <input
+              id="aguaInput"
+              type="number"
+              min="0"
+              step="500"
+              class="input-tactical font-tactical-mono"
+              placeholder="ej. 8500"
+              [ngModel]="nivelAguaActual()"
+              (ngModelChange)="nivelAguaActual.set($event)"
+              name="aguaInput"
+            />
+          </div>
+
+          <div class="modal-footer-inside">
+            <button
+              type="button"
+              class="btn-fire-danger"
+              [disabled]="enviandoCambioEstado()"
+              (click)="cerrarModalCambioEstado()"
+            >
+              <i class="bi bi-x-lg"></i> Cancelar
+            </button>
+
+            <button
+              type="submit"
+              class="btn-fire-primary"
+              [disabled]="enviandoCambioEstado()"
+            >
+              <span *ngIf="!enviandoCambioEstado()"><i class="bi bi-check2"></i> Confirmar Transición</span>
+              <span *ngIf="enviandoCambioEstado()"><i class="bi bi-arrow-repeat spin-icon"></i> Guardando...</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL: GOBERNANZA HUMAN-IN-THE-LOOP (APROBACIÓN DE DESPACHO SAGA)        -->
+  <!-- ======================================================================= -->
   <div *ngIf="modalDespachoAbierto()" class="modal-backdrop">
     <div class="modal-dialog">
       <header class="modal-header">
@@ -234,7 +852,7 @@
             Aprobación Táctica de Despacho (Human-in-the-Loop)
           </h2>
           <span class="font-tactical-mono text-muted text-xs">
-            TRANSACCIÓN DISTRIBUIDA SAGA &bull; MS-01 &bull; MS-02 &bull; MS-03
+            ORQUESTADOR SAGA &bull; MS-01 &bull; MS-02 &bull; MS-03
           </span>
         </div>
         <button class="modal-close-icon" [disabled]="enviandoDespacho()" (click)="cerrarModalDespacho()">
@@ -243,7 +861,6 @@
       </header>
 
       <div class="modal-body">
-        <!-- Banner de Alerta de Error dentro del Modal (REGLA INVIOLABLE: no se cierra) -->
         <div *ngIf="errorDespachoModal()" class="modal-alert-danger">
           <i class="bi bi-exclamation-triangle-fill"></i>
           <div>
@@ -251,7 +868,6 @@
           </div>
         </div>
 
-        <!-- Resumen del Incidente Seleccionado -->
         <div *ngIf="incidenteSeleccionado()" class="incident-summary-box">
           <div class="summary-header">
             <span class="font-tactical-mono font-bold">{{ incidenteSeleccionado()!.codigo }}</span>
@@ -261,12 +877,11 @@
           </div>
           <p class="summary-title">{{ incidenteSeleccionado()!.titulo }}</p>
           <div class="summary-meta font-tactical-mono text-xs text-muted">
-            <span><i class="bi bi-geo-alt"></i> {{ incidenteSeleccionado()!.direccion }} ({{ incidenteSeleccionado()!.cuadrante }})</span>
+            <span><i class="bi bi-geo-alt"></i> {{ incidenteSeleccionado()!.direccion }}</span>
             <span><i class="bi bi-clock"></i> Reportado: {{ incidenteSeleccionado()!.horaReporte }}</span>
           </div>
         </div>
 
-        <!-- Formulario Táctico de Asignación -->
         <form class="tactical-form" (ngSubmit)="ejecutarAprobacionDespacho()">
           <div class="form-group">
             <label class="form-label" for="camionSelect">
@@ -274,7 +889,7 @@
             </label>
             <select
               id="camionSelect"
-              class="select-tactical"
+              class="select-tactical font-tactical-mono"
               [class.input-error]="erroresCampos().camion"
               [ngModel]="camionSeleccionadoId()"
               (ngModelChange)="camionSeleccionadoId.set($event)"
@@ -285,7 +900,6 @@
                 {{ cam.placa }} - {{ cam.tipo }} (Agua: {{ cam.capacidadAguaL | number }} L) [{{ cam.estado }}]
               </option>
             </select>
-            <!-- Error inline en rojo -->
             <div *ngIf="erroresCampos().camion" class="field-error-text">
               <i class="bi bi-exclamation-circle-fill"></i> {{ erroresCampos().camion }}
             </div>
@@ -320,39 +934,34 @@
               id="notasOperativas"
               rows="3"
               class="textarea-tactical"
-              placeholder="Instrucciones radiales para el maquinista o cuadrante de abastecimiento..."
+              placeholder="Instrucciones para la tripulación o sector de abastecimiento..."
               [ngModel]="notasOperativas()"
               (ngModelChange)="notasOperativas.set($event)"
               name="notasOperativas"
             ></textarea>
           </div>
+
+          <div class="modal-footer-inside">
+            <button
+              type="button"
+              class="btn-fire-danger"
+              [disabled]="enviandoDespacho()"
+              (click)="cerrarModalDespacho()"
+            >
+              <i class="bi bi-x-lg"></i> Cancelar
+            </button>
+
+            <button
+              type="submit"
+              class="btn-fire-primary"
+              [disabled]="enviandoDespacho()"
+            >
+              <span *ngIf="!enviandoDespacho()"><i class="bi bi-send-fill"></i> Confirmar Despacho SAGA</span>
+              <span *ngIf="enviandoDespacho()"><i class="bi bi-arrow-repeat spin-icon"></i> Coordinando SAGA...</span>
+            </button>
+          </div>
         </form>
       </div>
-
-      <footer class="modal-footer">
-        <button
-          type="button"
-          class="btn-fire-danger"
-          [disabled]="enviandoDespacho()"
-          (click)="cerrarModalDespacho()"
-        >
-          <i class="bi bi-x-lg"></i> Cancelar
-        </button>
-
-        <button
-          type="button"
-          class="btn-fire-primary"
-          [disabled]="enviandoDespacho()"
-          (click)="ejecutarAprobacionDespacho()"
-        >
-          <span *ngIf="!enviandoDespacho()">
-            <i class="bi bi-send-fill"></i> Confirmar y Despachar Unidad
-          </span>
-          <span *ngIf="enviandoDespacho()">
-            <i class="bi bi-arrow-repeat spin-icon"></i> Coordinando SAGA...
-          </span>
-        </button>
-      </footer>
     </div>
   </div>
 </div>
