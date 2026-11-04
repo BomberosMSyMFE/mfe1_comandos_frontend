@@ -3,7 +3,7 @@
 
 export const environment = {
   production: false,
-  useMocks: true,
+  useMocks: false,
   apiMs1Url: 'http://localhost:3000/api/v1',
   wsSalaCrisisUrl: 'http://localhost:3000/ws/sala-crisis',
   apiMs5Url: 'http://localhost:8005/api/v1',

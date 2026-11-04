@@ -1,24 +1,33 @@
-export type NivelRiesgo = 'CRITICO' | 'ALERTA' | 'CONTROLADO' | 'DESPACHADO';
+export type NivelRiesgo = 'CRITICO' | 'ALERTA' | 'CONTROLADO';
 
-export type EstadoIncidente = 'REPORTADO' | 'EN_EVALUACION' | 'DESPACHADO' | 'EN_COMBATE' | 'CONTROLADO' | 'EXTINGUIDO';
+export type EstadoIncidente = 'PENDIENTE' | 'DESPACHADO' | 'EN_COMBATE' | 'CONTROLADO' | 'CERRADO';
+
+export type TipoIncidente = 'ESTRUCTURAL' | 'FORESTAL' | 'QUIMICO' | 'RESCATE' | 'VEHICULAR';
 
 export interface Incidente {
   id: string;                  // Ej: "INC-101"
   codigo: string;              // Ej: "INC-101"
   titulo: string;              // Ej: "Incendio en Depósito Textil"
   descripcion: string;
-  tipo: string;                // "INCENDIO_ESTRUCTURAL", "ACCIDENTE_VEHICULAR", "FUGA_GAS"
+  tipo: TipoIncidente | string;
   cuadrante: string;           // "PARQUE_INDUSTRIAL", "CENTRO_HISTORICO", "PLAN_3000"
   direccion: string;
   nivelRiesgo: NivelRiesgo;
   estado: EstadoIncidente;
   camionAsignado?: string;     // Placa ej: "B-04-SCZ"
+  unidadesAsignadas?: number;
   litrosAguaEstimados: number;
   litrosEspumogenoEstimados?: number;
   latitud: number;
   longitud: number;
   horaReporte: string;
   oficialACargo?: string;
+  denunciante?: {
+    nombre: string;
+    telefono: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface KpiCrisis {
@@ -26,4 +35,48 @@ export interface KpiCrisis {
   camionesEnCombate: number;
   hidrantesOperativos: number;
   litrosAguaDisponibles: number;
+}
+
+export interface HistorialTimelineItem {
+  incidenteId: string;
+  timestamp: number;
+  eventoId: string;
+  estadoAnterior: string | null;
+  estadoNuevo: EstadoIncidente | string;
+  operadorId: string;
+  novedadTexto: string;
+  nivelAguaActual?: number;
+}
+
+export interface InsumoDespachado {
+  insumoId: string;
+  nombre: string;
+  cantidad: number;
+}
+
+export interface DespachoUnidadItem {
+  despachoId: string;
+  incidenteId: string;
+  camionId: string;
+  conductorId: string;
+  operadorAutoriza: string;
+  insumosAsociados: InsumoDespachado[];
+  horaDespacho: string;
+  estadoDespacho: 'EN_RUTA' | 'EN_ESCENA' | 'LIBERADO';
+  horaArribo?: string;
+  horaLiberacion?: string;
+}
+
+export interface TransaccionSagaItem {
+  sagaId: string;
+  incidenteId: string;
+  camionId: string;
+  operadorId: string;
+  status: 'EXITO' | 'COMPENSACION_EJECUTADA' | 'FALLO_CRITICO';
+  pasoMs2ReservaCamion: 'OK' | 'FALLO' | 'LIBERADO';
+  pasoMs3ReservaKit: 'OK' | 'RECHAZADO_SIN_STOCK';
+  horaInicio: string;
+  horaFin: string;
+  duracionMs: number;
+  detalleCompensacion?: string;
 }
