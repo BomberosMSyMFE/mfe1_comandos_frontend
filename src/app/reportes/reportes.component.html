@@ -125,34 +125,36 @@
         <!-- Barra de Descargas de Artefactos -->
         <div class="download-bar">
           <a
-            [href]="reporteGenerado()!.descargas.pdf"
+            [href]="reporteGenerado()?.descargas?.pdf || '#'"
             target="_blank"
             class="btn-fire-danger btn-sm"
+            [class.disabled]="!reporteGenerado()?.descargas?.pdf"
           >
             <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF WeasyPrint
           </a>
 
           <a
-            [href]="reporteGenerado()!.descargas.excel"
+            [href]="reporteGenerado()?.descargas?.excel || '#'"
             target="_blank"
             class="btn-fire-success-outline btn-sm"
+            [class.disabled]="!reporteGenerado()?.descargas?.excel"
           >
             <i class="bi bi-file-earmark-excel-fill"></i> Descargar Excel OpenPyXL
           </a>
 
           <span class="report-badge font-tactical-mono">
-            ID: {{ reporteGenerado()!.id_reporte }} ({{ reporteGenerado()!.tiempo_generacion_ms }} ms)
+            ID: {{ reporteGenerado()?.id_reporte }} ({{ reporteGenerado()?.tiempo_generacion_ms }} ms)
           </span>
         </div>
 
         <!-- Reproductor de Audio Radial Edge-TTS -->
-        <div class="audio-player-box">
+        <div class="audio-player-box" *ngIf="reporteGenerado()?.descargas?.audio">
           <label class="form-label">
             <i class="bi bi-volume-up-fill text-primary-fire"></i> Briefing de Radio Sintetizado (Edge-TTS):
           </label>
           <audio
             controls
-            [src]="reporteGenerado()!.descargas.audio"
+            [src]="reporteGenerado()?.descargas?.audio"
             class="audio-element"
           ></audio>
         </div>
@@ -160,7 +162,7 @@
         <!-- Resumen Ejecutivo -->
         <div class="executive-summary-card">
           <span class="summary-label">RESUMEN EJECUTIVO:</span>
-          <p>{{ reporteGenerado()!.resumen_ejecutivo }}</p>
+          <p>{{ reporteGenerado()?.resumen_ejecutivo }}</p>
         </div>
 
         <!-- Previsualización Markdown -->

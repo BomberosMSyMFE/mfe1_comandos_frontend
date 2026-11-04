@@ -1,14 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface ReporteRespuestaDTO {
   id_reporte: string;
   resumen_ejecutivo: string;
   markdown_completo: string;
-  recursos_involucrados: {
+  recursos_involucrados?: {
     camiones: string[];
     personal_estimado: number;
     insumos_clave: string[];
@@ -20,6 +20,9 @@ export interface ReporteRespuestaDTO {
   };
   tiempo_generacion_ms: number;
   origen: 'VOZ_WHISPER' | 'TEXTO_DIRECTO';
+  metricas_clave?: Record<string, any>;
+  cuadrante?: string;
+  comando_detectado?: string;
 }
 
 @Injectable({
@@ -30,6 +33,66 @@ export class ReportesService {
 
   constructor(private http: HttpClient) {}
 
+  /**
+   * Normalizador universal de reportes:
+   * Adapta tanto el DTO plano de FastAPI (MS-05) como el formato interno con descargas anidadas.
+   */
+  private normalizarRespuesta(raw: any, origenFallback: 'VOZ_WHISPER' | 'TEXTO_DIRECTO'): ReporteRespuestaDTO {
+    const apiBase = environment.apiMs5Url.replace(/\/api\/v1\/?$/, ''); // ej. http://localhost:8005
+
+    const normalizarUrl = (url?: string): string => {
+      if (!url) return '';
+      if (url.startsWith('http://') || url.startsWith('https://')) return url;
+      return `${apiBase}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
+    const id = raw.id_reporte || `REP-${Date.now()}`;
+    const pdf = normalizarUrl(raw.descargas?.pdf || raw.pdf_url || `/api/v1/reportes/descargar/pdf/${id}`);
+    const excel = normalizarUrl(raw.descargas?.excel || raw.excel_url || `/api/v1/reportes/descargar/excel/${id}`);
+    const audio = normalizarUrl(raw.descargas?.audio || raw.audio_url || `/api/v1/reportes/reproducir/audio/${id}`);
+
+    const resumen = raw.resumen_ejecutivo || raw.resumen_radial || 'Reporte de situación táctica generado correctamente.';
+    const tiempoMs = raw.tiempo_generacion_ms ?? raw.duracion_proceso_ms ?? 0;
+
+    let markdown = raw.markdown_completo;
+    if (!markdown) {
+      markdown = `# REPORTE TÁCTICO DE SALA DE SITUACIÓN\n\n` +
+        `**ID Reporte:** ${id}\n` +
+        `**Fecha:** ${raw.fecha_emision || new Date().toLocaleString()}\n` +
+        `**Comando Detectado:** ${raw.comando_detectado || 'N/A'}\n` +
+        `**Cuadrante:** ${raw.cuadrante || 'Central'}\n\n` +
+        `### Briefing Radial\n${resumen}\n\n` +
+        `### Recursos Tácticos Identificados\n` +
+        `- Camiones en Operación: ${raw.metricas_clave?.total_camiones ?? 'No registrado'}\n` +
+        `- Litros de Agua: ${raw.metricas_clave?.total_litros_agua ?? 'No registrado'} L\n` +
+        `- Espumógeno Disponible: ${raw.metricas_clave?.litros_espuma_disponibles ?? 0} L\n` +
+        `- Hidrantes Operativos: ${raw.metricas_clave?.hidrantes_operativos ?? 'N/A'}\n`;
+    }
+
+    const recursos = raw.recursos_involucrados || {
+      camiones: raw.metricas_clave?.total_camiones ? [`${raw.metricas_clave.total_camiones} Autobombas`] : ['B-04-SCZ'],
+      personal_estimado: raw.metricas_clave?.total_camiones ? raw.metricas_clave.total_camiones * 4 : 8,
+      insumos_clave: raw.metricas_clave?.litros_espuma_disponibles ? [`${raw.metricas_clave.litros_espuma_disponibles}L Espuma`] : ['Agua y Mangueras']
+    };
+
+    return {
+      id_reporte: id,
+      resumen_ejecutivo: resumen,
+      markdown_completo: markdown,
+      recursos_involucrados: recursos,
+      descargas: {
+        pdf,
+        excel,
+        audio
+      },
+      tiempo_generacion_ms: tiempoMs,
+      origen: raw.origen || origenFallback,
+      metricas_clave: raw.metricas_clave,
+      cuadrante: raw.cuadrante,
+      comando_detectado: raw.comando_detectado
+    };
+  }
+
   public generarPorTexto(instruccion: string, vozTts: string = 'es-BO-MarceloNeural'): Observable<ReporteRespuestaDTO> {
     const body = {
       instruccion,
@@ -37,7 +100,8 @@ export class ReportesService {
       voz_tts: vozTts
     };
 
-    return this.http.post<ReporteRespuestaDTO>(`${this.baseUrl}/generar-por-texto`, body).pipe(
+    return this.http.post<any>(`${this.baseUrl}/generar-por-texto`, body, { withCredentials: true }).pipe(
+      map(resp => this.normalizarRespuesta(resp, 'TEXTO_DIRECTO')),
       catchError(err => {
         console.warn('[ReportesService] Servicio IA (MS-05) no disponible, simulando informe multimodal:', err.status);
         const mock: ReporteRespuestaDTO = {
@@ -66,10 +130,12 @@ export class ReportesService {
     const formData = new FormData();
     formData.append('archivo_audio', archivoAudio, archivoAudio.name);
 
-    return this.http.post<ReporteRespuestaDTO>(
+    return this.http.post<any>(
       `${this.baseUrl}/generar-por-voz?generar_multimodal=true&voz_tts=${encodeURIComponent(vozTts)}`,
-      formData
+      formData,
+      { withCredentials: true }
     ).pipe(
+      map(resp => this.normalizarRespuesta(resp, 'VOZ_WHISPER')),
       catchError(err => {
         console.warn('[ReportesService] Inferencia de voz remota falló, retornando transcripción local simulada:', err.status);
         const mock: ReporteRespuestaDTO = {

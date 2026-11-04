@@ -1,6 +1,6 @@
 const { shareAll, withModuleFederationPlugin } = require('@angular-architects/module-federation/webpack');
 
-module.exports = withModuleFederationPlugin({
+const mfConfig = withModuleFederationPlugin({
   name: 'mfe1_comandos_frontend',
 
   exposes: {
@@ -13,3 +13,10 @@ module.exports = withModuleFederationPlugin({
     ...shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' }),
   },
 });
+
+mfConfig.output = {
+  ...mfConfig.output,
+  scriptType: 'module',
+};
+
+module.exports = mfConfig;
