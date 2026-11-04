@@ -1,0 +1,246 @@
+/**
+ * shared_contracts_specs/theme-variables.css
+ * Tokens de Diseño Institucional y Variables Globales para Microfrontends
+ * Plataforma del Cuerpo de Bomberos — INF512 (Semestre 2/2026)
+ * Basado en paleta oficial: #CE2029, #7A1E24, #FEB000, #1A1A1A, #F5F2EA
+ */
+
+:root {
+  /* =========================================================================
+     1. COLORES PRIMARIOS Y MARCA (ADAPTADOS DE PALETA.WEBP)
+     ========================================================================= */
+  --color-primary: #CE2029;            /* Rojo Fuego Oficial Bomberos */
+  --color-primary-hover: #B01820;      /* Rojo Fuego Oscuro (Hover / Active) */
+  --color-primary-light: #FDF2F2;      /* Rojo Tenue para fondos de selección */
+  --color-primary-border: #FCA5A5;
+
+  --color-secondary: #7A1E24;          /* Granate Táctico Mando / Carmesí */
+  --color-secondary-hover: #5C151A;    /* Granate Profundo */
+  --color-secondary-light: #FBF0F1;
+
+  --color-warning: #FEB000;            /* Ámbar / Amarillo Alerta Fuego */
+  --color-warning-dark: #B45309;       /* Ámbar Oscuro para tipografía */
+  --color-warning-light: #FEF3C7;      /* Fondo suave de advertencia */
+  --color-warning-border: #FDE68A;
+
+  --color-dark: #1A1A1A;               /* Negro Carbón Táctico Onix */
+  --color-dark-surface: #262626;       /* Superficie oscura secundaria */
+  --color-surface-bone: #F5F2EA;       /* Blanco Humo / Marfil Técnico */
+
+  /* =========================================================================
+     2. SUPERFICIES, FONDOS Y BORDES (NEUTROS Y ESTRUCTURA)
+     ========================================================================= */
+  --bg-app: #F8FAFC;                   /* Fondo general de la aplicación (Slate 50) */
+  --bg-surface: #FFFFFF;               /* Fondo de tarjetas, tablas y modales */
+  --bg-card: #FFFFFF;
+  --bg-modal: #FFFFFF;
+  --bg-sidebar: #1A1A1A;               /* Fondo de barra lateral o consola táctica */
+  --bg-topbar: #1A1A1A;                /* Fondo de barra de navegación superior */
+
+  --border-color: #E2E8F0;             /* Gris Slate 200 para bordes sutiles */
+  --border-color-dark: #CBD5E1;        /* Gris Slate 300 para bordes activos */
+  --border-color-focus: #CE2029;       /* Resaltado de inputs en foco */
+
+  /* =========================================================================
+     3. TIPOGRAFÍA Y TEXTO
+     ========================================================================= */
+  --text-primary: #0F172A;             /* Grafito Carbón (Slate 900) */
+  --text-secondary: #475569;           /* Gris Neutro para etiquetas (Slate 600) */
+  --text-muted: #94A3B8;               /* Gris Claro para placeholders (Slate 400) */
+  --text-on-dark: #FFFFFF;             /* Blanco puro sobre fondos oscuros */
+  --text-on-primary: #FFFFFF;          /* Blanco sobre botones rojos */
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  /* =========================================================================
+     4. GEOMETRÍA RECTANGULAR PROFESIONAL (CERO EXCESO DE REDONDEADO)
+     ========================================================================= */
+  --radius-btn: 4px;                   /* Rectangular con radio sutil profesional */
+  --radius-input: 4px;
+  --radius-badge: 3px;
+  --radius-card: 6px;
+  --radius-modal: 6px;
+
+  /* =========================================================================
+     5. SEMÁFORO DE RIESGO OPERATIVO (SALA DE CRISIS)
+     ========================================================================= */
+  --badge-critico-text: #991B1B;
+  --badge-critico-bg: #FEE2E2;
+  --badge-critico-border: #FCA5A5;
+
+  --badge-alerta-text: #B45309;
+  --badge-alerta-bg: #FEF3C7;
+  --badge-alerta-border: #FDE68A;
+
+  --badge-controlado-text: #166534;
+  --badge-controlado-bg: #DCFCE7;
+  --badge-controlado-border: #86EFAC;
+
+  --badge-neutral-text: #334155;
+  --badge-neutral-bg: #F1F5F9;
+  --badge-neutral-border: #CBD5E1;
+
+  /* =========================================================================
+     6. SOMBRAS Y ELEVACIÓN SUTIL
+     ========================================================================= */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+/* ===========================================================================
+   CLASES UTILITARIAS COMPARTIDAS (AGNOSTICAS AL FRAMEWORK)
+   =========================================================================== */
+
+/* --- BOTONES PROFESIONALES RECTANGULARES --- */
+.btn-fire-primary {
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-btn);
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+.btn-fire-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+.btn-fire-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-fire-secondary {
+  background-color: var(--color-secondary);
+  color: var(--text-on-primary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-btn);
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+.btn-fire-secondary:hover {
+  background-color: var(--color-secondary-hover);
+}
+
+.btn-fire-outline {
+  background-color: var(--bg-surface);
+  color: var(--color-dark);
+  border: 1px solid var(--border-color-dark);
+  border-radius: var(--radius-btn);
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+.btn-fire-outline:hover {
+  background-color: var(--bg-app);
+  border-color: var(--color-dark);
+}
+
+.btn-fire-danger {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-btn);
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+.btn-fire-danger:hover {
+  background-color: #FEE2E2;
+}
+
+/* --- BADGES SEMAFÓRICOS COMPACTOS --- */
+.badge-fire {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--radius-badge);
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.badge-fire-critical {
+  color: var(--badge-critico-text);
+  background-color: var(--badge-critico-bg);
+  border: 1px solid var(--badge-critico-border);
+}
+.badge-fire-warning {
+  color: var(--badge-alerta-text);
+  background-color: var(--badge-alerta-bg);
+  border: 1px solid var(--badge-alerta-border);
+}
+.badge-fire-success {
+  color: var(--badge-controlado-text);
+  background-color: var(--badge-controlado-bg);
+  border: 1px solid var(--badge-controlado-border);
+}
+.badge-fire-neutral {
+  color: var(--badge-neutral-text);
+  background-color: var(--badge-neutral-bg);
+  border: 1px solid var(--badge-neutral-border);
+}
+
+/* --- VALIDACIONES VISUALES EN LETRAS ROJAS --- */
+.field-error-text {
+  font-size: 12px;
+  color: #DC2626;
+  margin-top: 4px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.input-error {
+  border-color: #DC2626 !important;
+  background-color: #FEF2F2 !important;
+}
+
+.modal-alert-danger {
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  color: #991B1B;
+  padding: 10px 14px;
+  border-radius: var(--radius-btn);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- TIPOGRAFÍA TELEMETRÍA (MONOSPACE) --- */
+.font-tactical-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
