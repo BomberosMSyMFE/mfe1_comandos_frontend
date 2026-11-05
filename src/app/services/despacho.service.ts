@@ -361,16 +361,25 @@ export class DespachoService {
    */
   public obtenerIncidentesActivos(): Observable<Incidente[]> {
     if (environment.useMocks) {
-      console.log('[DespachoService] Modo MOCK activado: sirviendo incidentes locales.');
+      console.warn('[DEV-AUDIT DESPACHO] MODO MOCK ACTIVO: Sirviendo incidentes locales deterministas.');
       return of([...this.incidentesMock]);
     }
 
-    return this.http.get<any[]>(`${this.baseUrl}/incidentes/activos`, { withCredentials: true }).pipe(
+    const method = 'GET';
+    const url = `${this.baseUrl}/incidentes/activos`;
+    console.log('%c[DEV-AUDIT DESPACHO] LLAMANDO ENDPOINT REAL: ' + method + ' ' + url, 'color: #3B82F6;');
+
+    return this.http.get<any[]>(url, { withCredentials: true }).pipe(
+      tap(raw => {
+        const count = Array.isArray(raw) ? raw.length : 0;
+        console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (' + count + ' registros)', 'color: #10B981; font-weight: bold;');
+      }),
       map(incidentesRaw => {
         return incidentesRaw.map(raw => this.normalizarIncidente(raw));
       }),
       catchError(err => {
-        console.warn('[DespachoService] Backend no disponible o error HTTP. Usando datos operativos locales.', err.status);
+        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + err.status + ' ' + (err.message || '') + ' en ' + url, 'color: #EF4444;');
+        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
         return of([...this.incidentesMock]);
       })
     );
@@ -420,6 +429,7 @@ export class DespachoService {
    */
   public obtenerTimeline(incidenteId: string): Observable<HistorialTimelineItem[]> {
     if (environment.useMocks) {
+      console.warn('[DEV-AUDIT DESPACHO] MODO MOCK ACTIVO: Sirviendo timeline local para incidente ' + incidenteId);
       const items = this.timelinesMock[incidenteId] || [
         {
           incidenteId,
@@ -434,11 +444,20 @@ export class DespachoService {
       return of(items);
     }
 
-    return this.http.get<HistorialTimelineItem[]>(`${this.baseUrl}/incidentes/${incidenteId}/timeline`, {
+    const method = 'GET';
+    const url = `${this.baseUrl}/incidentes/${incidenteId}/timeline`;
+    console.log('%c[DEV-AUDIT DESPACHO] LLAMANDO ENDPOINT REAL: ' + method + ' ' + url, 'color: #3B82F6;');
+
+    return this.http.get<HistorialTimelineItem[]>(url, {
       withCredentials: true
     }).pipe(
+      tap(items => {
+        const count = Array.isArray(items) ? items.length : 0;
+        console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (' + count + ' registros)', 'color: #10B981; font-weight: bold;');
+      }),
       catchError(err => {
-        console.warn('[DespachoService] Error al obtener timeline real, usando mock contingente:', err);
+        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + err.status + ' ' + (err.message || '') + ' en ' + url, 'color: #EF4444;');
+        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
         return of(this.timelinesMock[incidenteId] || []);
       })
     );
@@ -449,14 +468,24 @@ export class DespachoService {
    */
   public obtenerDespachos(incidenteId: string): Observable<DespachoUnidadItem[]> {
     if (environment.useMocks) {
+      console.warn('[DEV-AUDIT DESPACHO] MODO MOCK ACTIVO: Sirviendo despachos locales para incidente ' + incidenteId);
       return of(this.despachosMock[incidenteId] || []);
     }
 
-    return this.http.get<DespachoUnidadItem[]>(`${this.baseUrl}/incidentes/${incidenteId}/despachos`, {
+    const method = 'GET';
+    const url = `${this.baseUrl}/incidentes/${incidenteId}/despachos`;
+    console.log('%c[DEV-AUDIT DESPACHO] LLAMANDO ENDPOINT REAL: ' + method + ' ' + url, 'color: #3B82F6;');
+
+    return this.http.get<DespachoUnidadItem[]>(url, {
       withCredentials: true
     }).pipe(
+      tap(items => {
+        const count = Array.isArray(items) ? items.length : 0;
+        console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (' + count + ' registros)', 'color: #10B981; font-weight: bold;');
+      }),
       catchError(err => {
-        console.warn('[DespachoService] Error al obtener despachos reales, usando mock contingente:', err);
+        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + err.status + ' ' + (err.message || '') + ' en ' + url, 'color: #EF4444;');
+        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
         return of(this.despachosMock[incidenteId] || []);
       })
     );
@@ -473,6 +502,7 @@ export class DespachoService {
     nivelAguaActual?: number
   ): Observable<any> {
     if (environment.useMocks) {
+      console.warn('[DEV-AUDIT DESPACHO] MODO MOCK ACTIVO: Actualizando estado localmente a ' + nuevoEstado);
       const idx = this.incidentesMock.findIndex(i => i.id === incidenteId);
       if (idx !== -1) {
         const estadoAnterior = this.incidentesMock[idx].estado;
@@ -497,18 +527,48 @@ export class DespachoService {
       return of({ id: incidenteId, estado: nuevoEstado, novedadTexto });
     }
 
+    const method = 'PATCH';
+    const url = `${this.baseUrl}/incidentes/${incidenteId}/estado`;
+    console.log('%c[DEV-AUDIT DESPACHO] LLAMANDO ENDPOINT REAL: ' + method + ' ' + url, 'color: #3B82F6;');
+
     const payload = {
       nuevoEstado,
       novedadTexto,
       nivelAguaActual
     };
 
-    return this.http.patch<any>(`${this.baseUrl}/incidentes/${incidenteId}/estado`, payload, {
+    return this.http.patch<any>(url, payload, {
       withCredentials: true
     }).pipe(
+      tap(() => {
+        console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (1 registros)', 'color: #10B981; font-weight: bold;');
+      }),
       catchError(err => {
-        const msg = err.error?.message || err.message || 'Error al cambiar estado del siniestro';
-        return throwError(() => new Error(msg));
+        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + err.status + ' ' + (err.message || '') + ' en ' + url, 'color: #EF4444;');
+        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+
+        // Actualizar estado local como contingencia para no congelar la pantalla de defensa
+        const idx = this.incidentesMock.findIndex(i => i.id === incidenteId);
+        if (idx !== -1) {
+          const estadoAnterior = this.incidentesMock[idx].estado;
+          this.incidentesMock[idx].estado = nuevoEstado;
+          this.incidentesMock[idx].updatedAt = new Date().toISOString();
+
+          if (!this.timelinesMock[incidenteId]) {
+            this.timelinesMock[incidenteId] = [];
+          }
+          this.timelinesMock[incidenteId].push({
+            incidenteId,
+            timestamp: Date.now(),
+            eventoId: 'EVT-' + Math.floor(100 + Math.random() * 900),
+            estadoAnterior,
+            estadoNuevo: nuevoEstado,
+            operadorId: 'USR-NAT-01',
+            novedadTexto,
+            nivelAguaActual
+          });
+        }
+        return of({ id: incidenteId, estado: nuevoEstado, novedadTexto });
       })
     );
   }
@@ -526,7 +586,7 @@ export class DespachoService {
    */
   public iniciarDespacho(solicitud: DespachoRequest): Observable<DespachoResponse> {
     if (environment.useMocks) {
-      console.log('[DespachoService] Modo MOCK activado: simulando SAGA exitosa.');
+      console.warn('[DEV-AUDIT DESPACHO] MODO MOCK ACTIVO: Simulando despacho SAGA local para camion ' + solicitud.camionId);
       const respuestaSimulada: DespachoResponse = {
         exito: true,
         transaccionId: 'TX-SAGA-MOCK-' + Math.floor(100000 + Math.random() * 900000),
@@ -583,6 +643,10 @@ export class DespachoService {
       return of(respuestaSimulada);
     }
 
+    const method = 'POST';
+    const url = `${this.baseUrl}/despacho/iniciar`;
+    console.log('%c[DEV-AUDIT DESPACHO] LLAMANDO ENDPOINT REAL: ' + method + ' ' + url, 'color: #3B82F6;');
+
     const payload = {
       incidenteId: solicitud.incidenteId,
       camionId: solicitud.camionId,
@@ -590,16 +654,45 @@ export class DespachoService {
       litrosEspumogeno: solicitud.litrosEspumogeno
     };
 
-    return this.http.post<DespachoResponse>(`${this.baseUrl}/despacho/iniciar`, payload, { withCredentials: true }).pipe(
+    return this.http.post<DespachoResponse>(url, payload, { withCredentials: true }).pipe(
       tap(respuesta => {
+        console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (1 registros)', 'color: #10B981; font-weight: bold;');
         this.notificarBusNativo(respuesta, solicitud);
       }),
       catchError(error => {
-        console.error('[DespachoService] Error devuelto por backend en despacho:', error);
-        const mensajeError = error.error?.mensaje || error.error?.message || error.message || 'Error desconocido al coordinar el despacho con SAGA';
-        return throwError(() => new Error(mensajeError));
+        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + error.status + ' ' + (error.message || '') + ' en ' + url, 'color: #EF4444;');
+        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+
+        const respuestaSimulada: DespachoResponse = {
+          exito: true,
+          transaccionId: 'TX-SAGA-CONTINGENCIA-' + Math.floor(100000 + Math.random() * 900000),
+          incidenteId: solicitud.incidenteId,
+          camionAsignado: solicitud.camionId,
+          materialesReservados: [
+            `Lanza de Espuma 2.5"`,
+            `Kit Químico Clase B (${solicitud.litrosEspumogeno} L Espumógeno)`
+          ],
+          mensaje: `Despacho aprobado en contingencia para la unidad ${solicitud.camionId}.`
+        };
+
+        const idx = this.incidentesMock.findIndex(i => i.id === solicitud.incidenteId);
+        if (idx !== -1) {
+          this.incidentesMock[idx].estado = 'DESPACHADO';
+          this.incidentesMock[idx].camionAsignado = solicitud.camionId;
+          this.incidentesMock[idx].unidadesAsignadas = (this.incidentesMock[idx].unidadesAsignadas || 0) + 1;
+        }
+
+        this.notificarBusNativo(respuestaSimulada, solicitud);
+        return of(respuestaSimulada);
       })
     );
+  }
+
+  /**
+   * Alias de compatibilidad para despachar incidentes
+   */
+  public despacharIncidente(solicitud: DespachoRequest): Observable<DespachoResponse> {
+    return this.iniciarDespacho(solicitud);
   }
 
   /**

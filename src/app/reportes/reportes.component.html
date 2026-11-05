@@ -1,153 +1,509 @@
 <div class="reportes-container">
+  <!-- Cabecera Institucional del Módulo -->
   <header class="reportes-header">
     <div class="header-titles">
       <h1 class="header-title">
         <i class="bi bi-cpu text-primary-fire"></i>
-        MÓDULO DE REPORTES MULTIMODALES &amp; SÍNTESIS TÁCTICA
+        MÓDULO DE REPORTES DINÁMICOS &amp; SÍNTESIS TÁCTICA
       </h1>
-      <p class="header-subtitle font-tactical-mono">
-        MS-05 IA FAST-MCP &bull; RAG DETERMINISTA &bull; FASTER-WHISPER &bull; EDGE-TTS
-      </p>
     </div>
 
     <div class="header-actions">
-      <a routerLink="/" class="btn-fire-outline btn-sm">
+      <a routerLink="/crisis" class="btn-fire-outline btn-sm">
         <i class="bi bi-broadcast-pin"></i> Volver a Sala de Crisis
       </a>
     </div>
   </header>
 
+  <!-- Barra Segmentada de Selección de Modos de Reporte -->
+  <div class="mode-selector-tabs">
+    <button
+      class="mode-tab-btn"
+      [class.mode-tab-active]="modoVisual() === 'PROMPT_VOZ'"
+      (click)="setModoVisual('PROMPT_VOZ')"
+    >
+      <i class="bi bi-chat-left-dots-fill"></i>
+      <span>MODO PROMPT Y VOZ </span>
+    </button>
+
+    <button
+      class="mode-tab-btn"
+      [class.mode-tab-active]="modoVisual() === 'QUERY_BUILDER'"
+      (click)="setModoVisual('QUERY_BUILDER')"
+    >
+      <i class="bi bi-sliders"></i>
+      <span>MODO DINÁMICO</span>
+    </button>
+  </div>
+
+  <!-- Notificación Toast de Éxito -->
+  <div *ngIf="toastExito()" class="toast-success-banner">
+    <i class="bi bi-check-circle-fill"></i>
+    <span>{{ toastExito() }}</span>
+  </div>
+
+  <!-- Alerta de Error en Validación / Fallo -->
   <div *ngIf="errorMensaje()" class="modal-alert-danger">
     <i class="bi bi-exclamation-triangle-fill"></i>
     <span>{{ errorMensaje() }}</span>
   </div>
 
-  <div class="reportes-grid">
-    <!-- Panel de Entrada (Texto o Voz) -->
-    <div class="panel-input">
-      <h2 class="panel-title">
-        <i class="bi bi-chat-left-text-fill"></i> Solicitud de Reporte
-      </h2>
-
-      <!-- Opción 1: Instrucción por Texto Natural -->
-      <div class="form-group">
-        <label class="form-label">Comando o Requerimiento Táctico:</label>
-        <textarea
-          rows="4"
-          class="textarea-tactical"
-          placeholder="Escriba la instrucción de reporte táctico..."
-          [ngModel]="instruccionTexto()"
-          (ngModelChange)="instruccionTexto.set($event)"
-        ></textarea>
-      </div>
-
-      <div class="voice-selection-row">
-        <label class="form-label">Voz Neural de Briefing:</label>
-        <select
-          class="select-tactical"
-          [ngModel]="vozTts()"
-          (ngModelChange)="vozTts.set($event)"
-        >
-          <option value="es-BO-MarceloNeural">es-BO-MarceloNeural (Oficial Operativo)</option>
-          <option value="es-BO-SofiaNeural">es-BO-SofiaNeural (Operadora de Radio)</option>
-        </select>
-      </div>
-
-      <div class="action-buttons-row">
-        <button
-          class="btn-fire-primary"
-          [disabled]="procesando()"
-          (click)="generarPorTexto()"
-        >
-          <span *ngIf="!procesando()"><i class="bi bi-file-text-fill"></i> Generar por Texto</span>
-          <span *ngIf="procesando()"><i class="bi bi-arrow-repeat spin-icon"></i> Sintetizando...</span>
-        </button>
-      </div>
-
-      <hr class="divider" />
-
-      <!-- Opción 2: Carga de Audio Radial Voice-to-Report -->
-      <h2 class="panel-title" style="margin-top: 10px;">
-        <i class="bi bi-mic-fill"></i> Ingesta Radial Voice-to-Report
-      </h2>
-      <p class="text-xs text-muted" style="margin-bottom: 12px;">
-        Transcribe notas de voz o transmisiones de radio de 25 metros con Faster-Whisper.
-      </p>
-
-      <div class="file-drop-area">
-        <input
-          type="file"
-          id="audioFileInput"
-          accept="audio/*"
-          (change)="onArchivoSeleccionado($event)"
-          class="file-input-hidden"
-        />
-        <label for="audioFileInput" class="file-drop-label">
-          <i class="bi bi-cloud-arrow-up-fill file-icon"></i>
-          <span *ngIf="!nombreArchivo()">Haga clic para seleccionar archivo radial (WAV, MP3, OGG)</span>
-          <span *ngIf="nombreArchivo()" class="font-bold text-dark">{{ nombreArchivo() }}</span>
-        </label>
-      </div>
-
-      <div class="action-buttons-row" style="margin-top: 14px;">
-        <button
-          class="btn-fire-secondary"
-          [disabled]="procesando() || !archivoAudio()"
-          (click)="generarPorVoz()"
-        >
-          <span *ngIf="!procesando()"><i class="bi bi-soundwave"></i> Transcribir y Compilar Multimodal</span>
-          <span *ngIf="procesando()"><i class="bi bi-arrow-repeat spin-icon"></i> Inferencia Whisper...</span>
-        </button>
-
-        <button class="btn-fire-outline" (click)="limpiar()">
-          <i class="bi bi-trash3"></i> Limpiar
-        </button>
-      </div>
+  <!-- Barra Táctica de Progreso de Compilación -->
+  <div *ngIf="procesando() || (progresoCompilacion() > 0 && progresoCompilacion() < 100)" class="progress-tactical-container">
+    <div class="progress-labels">
+      <span class="progress-text"><i class="bi bi-gear-wide-connected spin-icon"></i> {{ mensajeProgreso() }}</span>
+      <span class="progress-percentage font-tactical-mono">{{ progresoCompilacion() }}%</span>
     </div>
+    <div class="progress-track">
+      <div class="progress-fill" [style.width.%]="progresoCompilacion()"></div>
+    </div>
+  </div>
 
-    <!-- Panel de Resultados Multimodales -->
-    <div class="panel-output">
-      <h2 class="panel-title">
-        <i class="bi bi-clipboard2-data-fill"></i> Artefactos Multimodales Compilados
-      </h2>
+  <!-- Grilla Principal: Panel de Configuración a la Izquierda, Resultados a la Derecha -->
+  <div class="reportes-grid">
 
-      <div *ngIf="!reporteGenerado() && !procesando()" class="empty-output">
-        <i class="bi bi-file-earmark-bar-graph"></i>
-        <p>Genere un reporte mediante texto o nota de voz para ver los artefactos aquí.</p>
+    <!-- ===================================================================== -->
+    <!-- COLUMNA IZQUIERDA: CONFIGURADOR SEGÚN MODO ACTIVO                     -->
+    <!-- ===================================================================== -->
+    <div class="panel-input">
+
+      <!-- =================================================================== -->
+      <!-- A) MODO PROMPT / VOZ                                                -->
+      <!-- =================================================================== -->
+      <div *ngIf="modoVisual() === 'PROMPT_VOZ'" class="mode-view-prompt">
+        <h2 class="panel-title">
+          <i class="bi bi-terminal-fill text-primary-fire"></i>
+          Prompt Táctico
+        </h2>
+
+        <div class="form-group">
+          <label class="form-label">Instrucción en Lenguaje Natural:</label>
+          <textarea
+            rows="5"
+            class="textarea-tactical"
+            placeholder="Especifique el reporte deseado indicando columnas, criterios y formato (ej: 'Generar reporte dinámico de siniestros críticos en el cuadrante Norte con columnas código, tipo de siniestro, agua usada y unidades despachadas, con fila de totales en formato Excel y PDF')..."
+            [ngModel]="instruccionTexto()"
+            (ngModelChange)="instruccionTexto.set($event)"
+          ></textarea>
+        </div>
+
+        <div class="voice-selection-row">
+          <label class="form-label">Voz Neural de Briefing Operativo (Edge-TTS):</label>
+          <select
+            class="select-tactical"
+            [ngModel]="vozTts()"
+            (ngModelChange)="vozTts.set($event)"
+          >
+            <option value="es-BO-MarceloNeural">es-BO-MarceloNeural (Comandante Oficial)</option>
+            <option value="es-BO-SofiaNeural">es-BO-SofiaNeural (Operadora de Sala de Radio)</option>
+          </select>
+        </div>
+
+        <div class="action-buttons-row">
+          <button
+            class="btn-fire-primary"
+            [disabled]="procesando()"
+            (click)="generarPorTexto()"
+          >
+            <span *ngIf="!procesando()"><i class="bi bi-file-text-fill"></i> Generar por Prompt</span>
+            <span *ngIf="procesando()"><i class="bi bi-arrow-repeat spin-icon"></i> Compilando...</span>
+          </button>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Sub-sección Ingesta de Audio Radial y Micrófono en Vivo (Faster-Whisper) -->
+        <h2 class="panel-title" style="margin-top: 10px;">
+          <i class="bi bi-mic-fill text-primary-fire"></i>
+          Voice-to-Report (Micrófono en Vivo &amp; Audio Radial)
+        </h2>
+
+        <!-- Widget de Grabación con Micrófono -->
+        <div class="mic-recorder-box">
+          <!-- Estado 1: Grabando en Tiempo Real -->
+          <div *ngIf="grabandoAudio()" class="recording-active-banner">
+            <div class="rec-pulse-container">
+              <span class="rec-pulse-dot"></span>
+              <span class="rec-pulse-text font-tactical-mono">
+                GRABANDO VOZ RADIAL EN VIVO &bull; {{ formatoTiempoGrabacion() }}
+              </span>
+            </div>
+            <button
+              type="button"
+              class="btn-stop-recording"
+              (click)="detenerGrabacionAudio()"
+            >
+              <i class="bi bi-stop-circle-fill"></i> Detener Grabación
+            </button>
+          </div>
+
+          <!-- Estado 2: Reposo (Botón para iniciar grabación) -->
+          <div *ngIf="!grabandoAudio() && !audioGrabadoUrl()" class="recording-idle-banner">
+            <button
+              type="button"
+              class="btn-start-recording"
+              (click)="iniciarGrabacionAudio()"
+              [disabled]="procesando()"
+            >
+              <i class="bi bi-mic-fill"></i> Iniciar Grabación con Micrófono
+            </button>
+            <span class="text-xs text-muted">o si lo prefiere, cargue un archivo de audio pregrabado:</span>
+            
+            <div class="file-drop-area-compact">
+              <input
+                type="file"
+                id="audioFileInput"
+                accept="audio/*"
+                (change)="onArchivoSeleccionado($event)"
+                class="file-input-hidden"
+              />
+              <label for="audioFileInput" class="file-drop-label-compact">
+                <i class="bi bi-cloud-arrow-up-fill"></i>
+                <span *ngIf="!nombreArchivo()">Cargar archivo de audio (WAV, MP3, OGG, WebM)</span>
+                <span *ngIf="nombreArchivo()" class="font-bold text-dark">{{ nombreArchivo() }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Estado 3: Audio Listo para Transcripción -->
+          <div *ngIf="!grabandoAudio() && (audioGrabadoUrl() || archivoAudio())" class="audio-ready-card">
+            <div class="audio-ready-header">
+              <span class="audio-ready-badge">
+                <i class="bi bi-soundwave"></i> AUDIO LISTO PARA INFERENCIA
+              </span>
+              <span class="font-bold text-xs text-dark">{{ nombreArchivo() }}</span>
+              <button
+                type="button"
+                class="btn-discard-audio"
+                (click)="cancelarGrabacionAudio()"
+                title="Descartar y grabar de nuevo"
+              >
+                <i class="bi bi-trash3"></i> Descartar
+              </button>
+            </div>
+            
+            <!-- Reproductor local para escuchar la orden dictada antes de enviar -->
+            <audio
+              *ngIf="audioGrabadoUrl()"
+              controls
+              [src]="audioGrabadoUrl()"
+              class="audio-preview-element"
+            ></audio>
+          </div>
+        </div>
+
+        <div class="action-buttons-row" style="margin-top: 14px;">
+          <button
+            class="btn-fire-secondary btn-block"
+            [disabled]="procesando() || (!archivoAudio() && !audioGrabadoUrl())"
+            (click)="generarPorVoz()"
+          >
+            <span *ngIf="!procesando()">
+              <i class="bi bi-cpu-fill"></i> Transcribir y Compilar Reporte por Voz
+            </span>
+            <span *ngIf="procesando()">
+              <i class="bi bi-arrow-repeat spin-icon"></i> Inferencia Faster-Whisper...
+            </span>
+          </button>
+
+          <button class="btn-fire-outline" (click)="limpiar()">
+            <i class="bi bi-arrow-counterclockwise"></i> Restablecer
+          </button>
+        </div>
       </div>
 
-      <div *ngIf="procesando()" class="loading-output">
-        <i class="bi bi-arrow-repeat spin-icon"></i>
-        <p>Procesando RAG Grounding determinista y compilando PDF, Excel y Audio Neural...</p>
-      </div>
+      <!-- =================================================================== -->
+      <!-- B) MODO CONSTRUCTOR DINÁMICO (QUERY BUILDER TÁCTICO)                -->
+      <!-- =================================================================== -->
+      <div *ngIf="modoVisual() === 'QUERY_BUILDER'" class="mode-view-builder">
+        <h2 class="panel-title">
+          <i class="bi bi-sliders text-primary-fire"></i>
+          Constructor de Reportes Tácticos Dinámicos
+        </h2>
 
-      <div *ngIf="reporteGenerado()" class="report-content">
-        <!-- Barra de Descargas de Artefactos -->
-        <div class="download-bar">
-          <a
-            [href]="reporteGenerado()?.descargas?.pdf || '#'"
-            target="_blank"
-            class="btn-fire-danger btn-sm"
-            [class.disabled]="!reporteGenerado()?.descargas?.pdf"
+        <!-- 1. SELECTOR DE TABLA / FUENTE -->
+        <div class="form-group">
+          <label class="form-label">
+            <i class="bi bi-database-fill"></i> 1. Tabla / Fuente de Datos:
+          </label>
+          <select
+            class="select-tactical"
+            [ngModel]="fuenteSeleccionada()"
+            (ngModelChange)="onFuenteChange($event)"
           >
-            <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF WeasyPrint
-          </a>
-
-          <a
-            [href]="reporteGenerado()?.descargas?.excel || '#'"
-            target="_blank"
-            class="btn-fire-success-outline btn-sm"
-            [class.disabled]="!reporteGenerado()?.descargas?.excel"
-          >
-            <i class="bi bi-file-earmark-excel-fill"></i> Descargar Excel OpenPyXL
-          </a>
-
-          <span class="report-badge font-tactical-mono">
-            ID: {{ reporteGenerado()?.id_reporte }} ({{ reporteGenerado()?.tiempo_generacion_ms }} ms)
+            <option *ngFor="let esq of esquemas()" [value]="esq.id">
+              {{ esq.nombre }}
+            </option>
+          </select>
+          <span class="source-description-text" *ngIf="esquemaActual()">
+            {{ esquemaActual()?.descripcion }}
           </span>
         </div>
 
-        <!-- Reproductor de Audio Radial Edge-TTS -->
+        <!-- 2. SELECTOR DE COLUMNAS (CHECKBOXES) -->
+        <div class="form-group">
+          <div class="columns-header-row">
+            <label class="form-label" style="margin-bottom: 0;">
+              <i class="bi bi-layout-three-columns"></i> 2. Columnas Disponibles:
+              <span class="badge-count font-tactical-mono">
+                ({{ totalColumnasSeleccionadas() }} seleccionadas)
+              </span>
+            </label>
+            <div class="columns-quick-actions">
+              <button type="button" class="btn-link-action" (click)="seleccionarTodasColumnas()">
+                Todas
+              </button>
+              <span class="text-muted">&bull;</span>
+              <button type="button" class="btn-link-action" (click)="restaurarColumnasPorDefecto()">
+                Por Defecto
+              </button>
+            </div>
+          </div>
+
+          <div class="columns-checkbox-grid">
+            <label
+              *ngFor="let col of esquemaActual()?.columnas"
+              class="checkbox-pill"
+              [class.checkbox-pill-active]="isColumnaSeleccionada(col.id)"
+            >
+              <input
+                type="checkbox"
+                class="hidden-checkbox"
+                [checked]="isColumnaSeleccionada(col.id)"
+                (change)="toggleColumna(col.id)"
+              />
+              <i class="bi" [ngClass]="isColumnaSeleccionada(col.id) ? 'bi-check-square-fill text-primary-fire' : 'bi-square'"></i>
+              <span class="col-name">{{ col.nombre }}</span>
+              <span *ngIf="col.sumable" class="badge-sumable" title="Columna con sumatoria contable">
+                &Sigma;
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. CRITERIOS DE SELECCIÓN (FILTROS) -->
+        <div class="form-group">
+          <label class="form-label">
+            <i class="bi bi-funnel-fill"></i> 3. Criterios de Selección y Filtros:
+          </label>
+
+          <div class="filters-grid">
+            <!-- Filtro Cuadrante -->
+            <div class="filter-field">
+              <span class="filter-sublabel">Cuadrante Táctico:</span>
+              <select
+                class="select-tactical"
+                [ngModel]="filtroCuadrante()"
+                (ngModelChange)="filtroCuadrante.set($event)"
+              >
+                <option *ngFor="let c of esquemaActual()?.criteriosDisponibles?.cuadrantes" [value]="c">
+                  {{ c }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Filtro Estado -->
+            <div class="filter-field">
+              <span class="filter-sublabel">Estado Operativo:</span>
+              <select
+                class="select-tactical"
+                [ngModel]="filtroEstado()"
+                (ngModelChange)="filtroEstado.set($event)"
+              >
+                <option *ngFor="let st of esquemaActual()?.criteriosDisponibles?.estados" [value]="st">
+                  {{ st }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Filtro Severidad (Si aplica a la tabla) -->
+            <div class="filter-field" *ngIf="tieneSeveridad()">
+              <span class="filter-sublabel">Severidad / Riesgo:</span>
+              <select
+                class="select-tactical"
+                [ngModel]="filtroSeveridad()"
+                (ngModelChange)="filtroSeveridad.set($event)"
+              >
+                <option *ngFor="let sev of esquemaActual()?.criteriosDisponibles?.severidades" [value]="sev">
+                  {{ sev }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Filtro Libre de Búsqueda -->
+            <div class="filter-field" [style.grid-column]="tieneSeveridad() ? 'auto' : 'span 2'">
+              <span class="filter-sublabel">Término Clave (Calle, Placa, Material):</span>
+              <input
+                type="text"
+                class="input-tactical"
+                placeholder="Filtro opcional..."
+                [ngModel]="filtroLibre()"
+                (ngModelChange)="filtroLibre.set($event)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. SELECTOR DE FORMATO DE SALIDA -->
+        <div class="form-group">
+          <label class="form-label">
+            <i class="bi bi-file-earmark-arrow-down-fill"></i> 4. Formato de Salida Requerido:
+          </label>
+
+          <div class="format-options-row">
+            <label class="format-pill" [class.format-pill-active]="formatoSalida() === 'AMBOS'">
+              <input
+                type="radio"
+                name="formato"
+                value="AMBOS"
+                [ngModel]="formatoSalida()"
+                (ngModelChange)="formatoSalida.set($event)"
+                class="hidden-radio"
+              />
+              <i class="bi bi-files"></i>
+              <span>Ambos (Excel + PDF)</span>
+            </label>
+
+            <label class="format-pill" [class.format-pill-active]="formatoSalida() === 'EXCEL'">
+              <input
+                type="radio"
+                name="formato"
+                value="EXCEL"
+                [ngModel]="formatoSalida()"
+                (ngModelChange)="formatoSalida.set($event)"
+                class="hidden-radio"
+              />
+              <i class="bi bi-file-earmark-excel-fill text-success"></i>
+              <span>Excel OpenPyXL</span>
+            </label>
+
+            <label class="format-pill" [class.format-pill-active]="formatoSalida() === 'PDF'">
+              <input
+                type="radio"
+                name="formato"
+                value="PDF"
+                [ngModel]="formatoSalida()"
+                (ngModelChange)="formatoSalida.set($event)"
+                class="hidden-radio"
+              />
+              <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
+              <span>PDF WeasyPrint</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 5. SWITCH FILA DE TOTALES -->
+        <div class="form-group switch-group">
+          <label class="switch-container">
+            <input
+              type="checkbox"
+              [checked]="incluirTotales()"
+              (change)="incluirTotales.set(!incluirTotales())"
+            />
+            <span class="switch-slider"></span>
+          </label>
+          <div class="switch-labels">
+            <span class="switch-title">Incluir Fila de Totales Contables</span>
+          </div>
+        </div>
+
+        <!-- 6. BOTÓN COMPILAR REPORTE DINÁMICO -->
+        <div class="action-buttons-row" style="margin-top: 20px;">
+          <button
+            class="btn-fire-primary btn-block"
+            [disabled]="procesando() || totalColumnasSeleccionadas() === 0"
+            (click)="compilarReporteDinamico()"
+          >
+            <span *ngIf="!procesando()"><i class="bi bi-cpu-fill"></i> Compilar Reporte Dinámico</span>
+            <span *ngIf="procesando()"><i class="bi bi-arrow-repeat spin-icon"></i> Compilando en Base de Datos...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- COLUMNA DERECHA: RESULTADOS, DESCARGAS Y TABLA TÁCTICA                -->
+    <!-- ===================================================================== -->
+    <div class="panel-output">
+      <h2 class="panel-title">
+        <i class="bi bi-clipboard2-data-fill text-primary-fire"></i>
+        Artefactos Compilados &amp; Vista Previa
+      </h2>
+
+      <!-- Estado Vacío -->
+      <div *ngIf="!reporteGenerado() && !procesando()" class="empty-output">
+        <i class="bi bi-file-earmark-bar-graph"></i>
+        <p class="font-bold">Ningún reporte generado todavía</p>
+        <p class="text-xs text-muted">
+          Utilice el Modo Prompt/Voz o configure el Constructor Dinámico para compilar informes oficiales de la base de datos.
+        </p>
+      </div>
+
+      <!-- Estado Procesando -->
+      <div *ngIf="procesando()" class="loading-output">
+        <i class="bi bi-arrow-repeat spin-icon"></i>
+        <p class="font-bold">{{ mensajeProgreso() }}</p>
+        <p class="text-xs text-muted">Conexión directa a base de datos y procesamiento contable sin alucinaciones.</p>
+      </div>
+
+      <!-- Contenido del Reporte Compilado (Diseño Formal e Institucional) -->
+      <div *ngIf="reporteGenerado()" class="report-content">
+
+        <!-- 1. Encabezado Institucional del Reporte -->
+        <div class="institutional-report-header">
+          <div class="inst-brand">
+            <i class="bi bi-shield-shaded inst-shield"></i>
+            <div>
+              <div class="inst-title">CUERPO DE BOMBEROS SANTA CRUZ</div>
+              <div class="inst-sub">SALA DE SITUACIÓN &bull; INFORME OFICIAL DE BASE DE DATOS</div>
+            </div>
+          </div>
+          <div class="inst-meta font-tactical-mono">
+            <span class="report-badge-pill">{{ reporteGenerado()?.id_reporte }}</span>
+            <span class="report-badge-pill">{{ reporteGenerado()?.tiempo_generacion_ms }} ms</span>
+          </div>
+        </div>
+
+        <!-- 2. Tarjeta Destacada de Orden Dictada por Voz / Prompt Transcrito -->
+        <div class="orden-dictada-card" *ngIf="reporteGenerado()?.orden_dictada">
+          <div class="orden-dictada-badge">
+            <i class="bi bi-mic-fill"></i> ORDEN DICTADA POR VOZ (TRANSCRIPCIÓN OFICIAL):
+          </div>
+          <p class="orden-dictada-texto font-tactical-mono">
+            "{{ reporteGenerado()?.orden_dictada }}"
+          </p>
+        </div>
+
+        <!-- 3. Dictamen Ejecutivo Táctico -->
+        <div class="executive-summary-card">
+          <span class="summary-label">DICTAMEN EJECUTIVO &bull; SALA DE SITUACIÓN:</span>
+          <p>{{ reporteGenerado()?.resumen_ejecutivo }}</p>
+        </div>
+
+        <!-- 4. Botones Grandes e Institucionales de Descarga (PDF WeasyPrint & Excel OpenPyXL) -->
+        <div class="institutional-downloads">
+          <!-- Botón PDF WeasyPrint -->
+          <button
+            *ngIf="formatoSalida() === 'PDF' || formatoSalida() === 'AMBOS' || reporteGenerado()?.descargas?.pdf"
+            class="btn-download-pdf"
+            (click)="descargarArtefacto('pdf')"
+            title="Descargar documento oficial en PDF WeasyPrint con formato editorial"
+          >
+            <i class="bi bi-file-earmark-pdf-fill"></i> Descargar Documento Oficial PDF
+          </button>
+
+          <!-- Botón Excel OpenPyXL -->
+          <button
+            *ngIf="formatoSalida() === 'EXCEL' || formatoSalida() === 'AMBOS' || reporteGenerado()?.descargas?.excel"
+            class="btn-download-excel"
+            (click)="descargarArtefacto('excel')"
+            title="Descargar libro de cálculo en Excel OpenPyXL con fórmulas =SUM()"
+          >
+            <i class="bi bi-file-earmark-excel-fill"></i> Descargar Hoja de Cálculo Excel (.xlsx)
+          </button>
+        </div>
+
+        <!-- 5. Reproductor de Audio Radial Edge-TTS si está disponible -->
         <div class="audio-player-box" *ngIf="reporteGenerado()?.descargas?.audio">
           <label class="form-label">
             <i class="bi bi-volume-up-fill text-primary-fire"></i> Briefing de Radio Sintetizado (Edge-TTS):
@@ -159,17 +515,42 @@
           ></audio>
         </div>
 
-        <!-- Resumen Ejecutivo -->
-        <div class="executive-summary-card">
-          <span class="summary-label">RESUMEN EJECUTIVO:</span>
-          <p>{{ reporteGenerado()?.resumen_ejecutivo }}</p>
+        <!-- 6. TABLA TÁCTICA INTERACTIVA DE DATOS (Estructurada y Formal) -->
+        <div *ngIf="reporteGenerado()?.datos_tabla as tabla" class="dynamic-table-section">
+          <div class="table-meta-bar">
+            <span class="table-meta-title">
+              <i class="bi bi-table"></i> Registros Tabulares Proyectados
+            </span>
+            <span class="badge-fire badge-fire-neutral font-tactical-mono">
+              {{ tabla.total_registros }} FILAS EN BASE DE DATOS
+            </span>
+          </div>
+
+          <div class="table-responsive-wrapper">
+            <table class="tactical-data-table">
+              <thead>
+                <tr>
+                  <th *ngFor="let colName of tabla.nombres_columnas">{{ colName }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let fila of tabla.filas">
+                  <td *ngFor="let colId of tabla.columnas">
+                    {{ fila[colId] }}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot *ngIf="tabla.fila_totales">
+                <tr class="totales-row">
+                  <td *ngFor="let colId of tabla.columnas">
+                    {{ tabla.fila_totales[colId] }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
 
-        <!-- Previsualización Markdown -->
-        <div class="markdown-preview">
-          <label class="form-label">Detalle Táctico (Formato Markdown Oficial):</label>
-          <pre class="markdown-content font-tactical-mono">{{ reporteGenerado()!.markdown_completo }}</pre>
-        </div>
       </div>
     </div>
   </div>
