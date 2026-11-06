@@ -952,3 +952,119 @@
 
 .w-100 { width: 100%; }
 .mt-1 { margin-top: 4px; }
+
+/* ========================================================================= */
+/* ESTILOS RBAC: ROL BOMBERO & RESTRICCIÓN DE ACCESO                         */
+/* ========================================================================= */
+.tab-btn-restricted {
+  opacity: 0.8;
+  border-style: dashed;
+  border-color: #E2E8F0;
+  cursor: pointer;
+}
+
+.tab-btn-restricted:hover {
+  background-color: #FEF2F2 !important;
+  color: #B91C1C !important;
+  border-color: #FCA5A5 !important;
+}
+
+.tab-lock-icon {
+  font-size: 11px;
+  color: #DC2626;
+  margin-left: 6px;
+}
+
+
+/* Modal Táctico de Rol No Autorizado (inspirado en unauthenticated-card de AppShell) */
+.modal-unauth-backdrop {
+  z-index: 2000;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.modal-unauth-dialog {
+  max-width: 500px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  border: 1px solid #E2E8F0;
+}
+
+.unauth-modal-card {
+  position: relative;
+  background: #FFFFFF;
+  padding: 38px 32px 32px 32px;
+  text-align: center;
+}
+
+.unauth-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #94A3B8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.unauth-modal-close:hover {
+  color: #0F172A;
+}
+
+.unauth-icon-wrapper {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px auto;
+  border-radius: 50%;
+  background: rgba(206, 32, 41, 0.1);
+  color: #CE2029;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  border: 2px solid rgba(206, 32, 41, 0.2);
+}
+
+.unauth-badge-role {
+  margin-bottom: 12px;
+}
+
+.unauth-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0F172A;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.unauth-desc {
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.65;
+  margin-bottom: 26px;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.unauth-modal-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.unauth-modal-actions .btn-fire-primary {
+  padding: 12px 24px;
+  font-size: 13.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-btn);
+}

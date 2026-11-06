@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { environment } from '../../environments/environment';
 import {
   ReportesService,
   ReporteRespuestaDTO,
@@ -26,7 +27,7 @@ export class ReportesComponent implements OnInit, OnDestroy {
   // MODO 1: PROMPT Y AUDIO RADIAL (WHISPER / GRABACIÓN CON MICRÓFONO)
   // =========================================================================
   public instruccionTexto = signal<string>(
-    'Generar reporte dinámico de siniestros críticos en el cuadrante Norte con columnas código, tipo de siniestro, agua usada y unidades asignadas, con fila de totales en formato Excel y PDF.'
+    'Atención Sala de Situación. Generar reporte dinámico de todos los siniestros de severidad Crítica en el Cuadrante Norte. Incluir específicamente las columnas: Código de Incidente, Tipo de Emergencia, Dirección, Agua Usada en Litros y Unidades Despachadas. Activar fila de totales contables para el volumen de agua y unidades, y compilar en formato Excel y PDF.'
   );
   public vozTts = signal<string>('es-BO-MarceloNeural');
   public archivoAudio = signal<File | null>(null);
@@ -419,19 +420,21 @@ export class ReportesComponent implements OnInit, OnDestroy {
       const url = rep.descargas?.excel || this.reportesService.obtenerUrlExcel(rep.id_reporte);
       window.open(url, '_blank');
     } else if (tipo === 'pdf') {
-      // Si existe un PDF real compilado por WeasyPrint en el backend (no mock ni local), abrirlo
-      if (
-        rep.descargas?.pdf &&
-        !rep.descargas.pdf.includes('REP-MOCK') &&
-        !rep.descargas.pdf.includes('REP-LOCAL-') &&
-        !rep.descargas.pdf.includes('REP-VOZ-') &&
-        !rep.descargas.pdf.includes('REP-DIN-')
-      ) {
-        window.open(rep.descargas.pdf, '_blank');
+      // Si existe un PDF real compilado por WeasyPrint en el backend MS-05 (servidor real online)
+      const esUrlRemotaReal = !environment.useMocks &&
+        Boolean(rep.descargas?.pdf) &&
+        !rep.descargas?.pdf.includes('REP-SCZ-') &&
+        !rep.descargas?.pdf.includes('REP-MOCK') &&
+        !rep.descargas?.pdf.includes('REP-LOCAL-') &&
+        !rep.descargas?.pdf.includes('REP-VOZ-') &&
+        !rep.descargas?.pdf.includes('REP-DIN-');
+
+      if (esUrlRemotaReal) {
+        window.open(rep.descargas!.pdf, '_blank');
         return;
       }
 
-      // Si estamos en modo autónomo/mock o el backend no está conectado:
+      // Si estamos en modo de prueba local o el backend está desconectado:
       // Construir la ventana de impresión institucional con la tabla completa, columnas, totales y estilos oficiales
       const printWindow = window.open('', '_blank');
       if (!printWindow) return;
@@ -671,7 +674,7 @@ export class ReportesComponent implements OnInit, OnDestroy {
   ${ordenDictadaHtml}
 
   <div class="summary-card">
-    <div class="summary-title">DICTAMEN EJECUTIVO &bull; SALA DE SITUACIÓN:</div>
+    <div class="summary-title">RESUMEN OPERATIVO &bull; COMANDO DE INCIDENTES:</div>
     <p class="summary-text">${rep.resumen_ejecutivo}</p>
   </div>
 

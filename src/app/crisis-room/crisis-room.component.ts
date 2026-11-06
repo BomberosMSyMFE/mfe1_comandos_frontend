@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import {
   Incidente,
@@ -16,6 +17,7 @@ import { CamionOption, DespachoRequest } from '../models/despacho.model';
 import { DespachoService } from '../services/despacho.service';
 import { SalaCrisisSocketService } from '../services/sala-crisis-socket.service';
 import { ReportesComponent } from '../reportes/reportes.component';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-crisis-room',
@@ -27,6 +29,12 @@ import { ReportesComponent } from '../reportes/reportes.component';
 export class CrisisRoomComponent implements OnInit, OnDestroy {
   // Pestañas de Navegación Táctica de MFE1
   public seccionActiva = signal<'CRISIS' | 'SAGA' | 'REPORTES'>('CRISIS');
+
+  // Control RBAC de Roles y Restricción Táctica
+  public rolUsuario = signal<'OPERADOR' | 'BOMBERO' | 'ADMINISTRADOR' | 'DESCONOCIDO'>('OPERADOR');
+  public modalRolNoAutorizado = signal<boolean>(false);
+  private cleanupAuthListeners: (() => void) | null = null;
+  private wsSuscrito = false;
 
   // Tipo de vista en Sala de Crisis: Tablero Kanban vs Tabla Táctica
   public tipoVista = signal<'KANBAN' | 'TABLA'>('KANBAN');
@@ -149,19 +157,151 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
 
   constructor(
     private despachoService: DespachoService,
-    private socketService: SalaCrisisSocketService
+    private socketService: SalaCrisisSocketService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
-    this.cargarDatosIniciales();
+    this.detectarRolUsuario();
+    this.escucharCambiosAuth();
+    if (this.rolUsuario() !== 'BOMBERO') {
+      this.cargarDatosIniciales();
+    }
     this.suscribirWebSockets();
   }
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
+    if (this.cleanupAuthListeners) {
+      this.cleanupAuthListeners();
+    }
+  }
+
+  /**
+   * Detecta el rol del usuario conectado según sessionStorage y revalida con /api/v1/auth/me
+   */
+  public detectarRolUsuario(): void {
+    let rolDetectado: 'OPERADOR' | 'BOMBERO' | 'ADMINISTRADOR' | null = null;
+
+    // 1. Primero verificar sessionStorage ('BOMBEROS_SSO_USER')
+    try {
+      const stored = sessionStorage.getItem('BOMBEROS_SSO_USER');
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user && user.rol) {
+          const rol = String(user.rol).toUpperCase();
+          if (rol === 'BOMBERO' || rol === 'OPERADOR' || rol === 'ADMINISTRADOR') {
+            rolDetectado = rol as any;
+            this.rolUsuario.set(rolDetectado!);
+            if (rolDetectado === 'BOMBERO') {
+              this.seccionActiva.set('REPORTES');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[MFE1 RBAC] Error leyendo BOMBEROS_SSO_USER en sessionStorage:', e);
+    }
+
+    // 2. Si no existe en sessionStorage (o para revalidar), llamada HTTP con credenciales HttpOnly
+    const authMeUrl = `${environment.apiMs1Url}/auth/me`;
+    this.http.get<{ usuarioId?: string; email?: string; rol?: string }>(authMeUrl, { withCredentials: true }).subscribe({
+      next: (res) => {
+        if (res && res.rol) {
+          const rolHttp = String(res.rol).toUpperCase() as 'OPERADOR' | 'BOMBERO' | 'ADMINISTRADOR';
+          const anterior = this.rolUsuario();
+          this.rolUsuario.set(rolHttp);
+          if (rolHttp === 'BOMBERO') {
+            this.seccionActiva.set('REPORTES');
+          } else if (anterior === 'BOMBERO' && (rolHttp === 'OPERADOR' || rolHttp === 'ADMINISTRADOR')) {
+            this.cargarDatosIniciales();
+            this.suscribirWebSockets();
+          }
+        }
+      },
+      error: () => {
+        if (!rolDetectado) {
+          this.rolUsuario.set('DESCONOCIDO');
+        }
+      }
+    });
+  }
+
+  /**
+   * Sincronización en caliente ante eventos SSO desde AppShell
+   */
+  private escucharCambiosAuth(): void {
+    if (typeof window === 'undefined') return;
+
+    const aplicarRol = (rolRaw?: string | null) => {
+      if (!rolRaw) {
+        this.rolUsuario.set('DESCONOCIDO');
+        return;
+      }
+      const rol = String(rolRaw).toUpperCase();
+      if (rol === 'BOMBERO' || rol === 'OPERADOR' || rol === 'ADMINISTRADOR') {
+        const anterior = this.rolUsuario();
+        this.rolUsuario.set(rol as any);
+        if (rol === 'BOMBERO') {
+          this.seccionActiva.set('REPORTES');
+        } else if (anterior === 'BOMBERO' && (rol === 'OPERADOR' || rol === 'ADMINISTRADOR')) {
+          this.cargarDatosIniciales();
+          this.suscribirWebSockets();
+        }
+      }
+    };
+
+    const authListener = (event: Event) => {
+      const custom = event as CustomEvent;
+      aplicarRol(custom.detail?.rol);
+    };
+
+    const storageListener = (event: StorageEvent) => {
+      if (event.key === 'BOMBEROS_SSO_USER') {
+        try {
+          const user = event.newValue ? JSON.parse(event.newValue) : null;
+          aplicarRol(user?.rol);
+        } catch {}
+      }
+    };
+
+    window.addEventListener('BOMBERO_AUTH_CHANGE', authListener);
+    window.addEventListener('storage', storageListener);
+
+    this.cleanupAuthListeners = () => {
+      window.removeEventListener('BOMBERO_AUTH_CHANGE', authListener);
+      window.removeEventListener('storage', storageListener);
+    };
+  }
+
+  /**
+   * Gestiona el cambio de pestaña táctica aplicando la regla RBAC estricta:
+   * El rol BOMBERO solo tiene permitido el módulo REPORTES.
+   * Si intenta entrar a CRISIS o SAGA, se bloquea y se muestra la modal táctica.
+   */
+  public cambiarSeccion(seccion: 'CRISIS' | 'SAGA' | 'REPORTES'): void {
+    if (this.rolUsuario() === 'BOMBERO' && (seccion === 'CRISIS' || seccion === 'SAGA')) {
+      this.modalRolNoAutorizado.set(true);
+      this.seccionActiva.set('REPORTES');
+      return;
+    }
+    this.seccionActiva.set(seccion);
+  }
+
+  public cerrarModalRolNoAutorizado(): void {
+    this.modalRolNoAutorizado.set(false);
+  }
+
+  public irAModuloReportesPermitido(): void {
+    this.modalRolNoAutorizado.set(false);
+    this.seccionActiva.set('REPORTES');
   }
 
   private cargarDatosIniciales(): void {
+    if (this.rolUsuario() === 'BOMBERO') {
+      return;
+    }
+
     this.cargando.set(true);
 
     this.subs.add(
@@ -197,11 +337,22 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
   }
 
   private suscribirWebSockets(): void {
+    if (this.wsSuscrito) {
+      return;
+    }
+    this.wsSuscrito = true;
+
+    // Monitoreo de estado de conexión WebSocket (común para todos los roles autenticados)
     this.subs.add(
       this.socketService.estaConectado$.subscribe(conectado => {
         this.estaConectadoWs.set(conectado);
       })
     );
+
+    // Si es BOMBERO, no requiere escuchar los eventos de despacho ni alarmas de sala de crisis
+    if (this.rolUsuario() === 'BOMBERO') {
+      return;
+    }
 
     this.subs.add(
       this.socketService.onIncidenteCreado$.subscribe(nuevo => {

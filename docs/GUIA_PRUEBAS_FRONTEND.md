@@ -120,15 +120,124 @@
 
 ---
 
-### PRUEBA 7: Consola de Reportes Multimodales (MS-05 Voice-to-Report)
-* **Objetivo:** Probar la ingesta de notas de voz radiales y comandos en texto.
-* **Pasos:**
-  1. En la URL del navegador, dirigirse a `http://localhost:4201/reportes`.
-  2. **Prueba por Texto:**
-     - Escribir en el campo: `Generar informe de situación de fuego estructural con balance de espuma y mangueras requeridas.`
-     - Presionar `[ Generar por Texto ]`.
-     - Se desplegará el resumen ejecutivo, el reproductor de audio radial y los botones para descargar PDF y Excel.
-  3. **Prueba por Voz (Audio Radial):**
-     - En el área punteada "Ingesta Radial Voice-to-Report", hacer clic y subir un archivo de audio (ej. `parcial.mp3` ubicado en la raíz del proyecto).
-     - Presionar `[ Transcribir y Compilar Multimodal ]`.
-     - El sistema transcribe el audio mediante Faster-Whisper, aplica RAG Grounding determinista y sintetiza el briefing sonoro con Edge-TTS.
+### PRUEBA 7: Consola de Reportes Multimodales y Constructor Dinámico (Requisitos de Examen INF512)
+* **Objetivo:** Demostrar el cumplimiento riguroso de los requisitos de examen del Ing. Rolando Martínez Canedo:
+  - **Requisito ⑤:** *"La generación de reportes dinámicos se puede hacer a partir de prompt, audio y/o texto, permitiendo especificar qué columnas tendrá el reporte, qué criterios de selección y si lo generamos en Excel o PDF"*.
+  - **Pregunta #4:** *"¿La aplicación permite generar reportes dinámicos a través de peticiones vía prompt utilizando agentes inteligentes y/o similares conectados directamente a la base de datos?"*.
+* **Ubicación:** Pestaña `Reportes Multimodales IA` en Sala de Crisis o directamente en `http://localhost:4201/reportes` (y vía Host en `http://localhost:4200/reportes`).
+
+---
+
+## 3. Batería Exhaustiva de Prompts para el Examen (Verbales con Micrófono y Escritos)
+
+El módulo cuenta con dos modalidades plenamente integradas:
+1. **Modo Prompt & Voz (Lenguaje Natural / Faster-Whisper):** Ingesta de audio o texto libre indicando columnas, criterios y formatos.
+2. **Modo Constructor Dinámico (Query Builder Táctico):** Interfaz visual interactiva con selector de tablas, checkboxes de columnas, filtros y switch de sumatoria contable.
+
+A continuación se presentan 5 ejemplos concretos listos para leer con micrófono o pegar en el prompt durante la defensa:
+
+---
+
+### EJEMPLO 1: Siniestros Críticos Cuadrante Norte con Fila de Totales
+* **Instrucción Verbal / Prompt:**
+  > *"Atención Sala de Situación. Generar reporte dinámico de todos los siniestros de severidad Crítica en el Cuadrante Norte. Incluir específicamente las columnas: Código de Incidente, Tipo de Emergencia, Dirección, Agua Usada en Litros y Unidades Despachadas. Activar fila de totales contables para el volumen de agua y unidades, y compilar en formato Excel y PDF."*
+* **Columnas Solicitadas:** `Código Incidente`, `Tipo de Emergencia`, `Dirección / Zona`, `Agua Usada (Litros)`, `Unidades Despachadas`.
+* **Criterios de Selección:**
+  - Cuadrante: `NORTE`
+  - Severidad: `CRITICA`
+* **Fila de Totales:** Activada (`true`) para columnas sumables `agua_usada` y `unidades`.
+* **Formato de Salida:** `Ambos (Excel OpenPyXL + PDF WeasyPrint)`.
+* **Verificación de Salida:**
+  1. En el Constructor Dinámico, seleccionar la tabla `Siniestros e Incidentes`.
+  2. Marcar las 5 columnas especificadas.
+  3. Fijar Cuadrante en `NORTE` y Severidad en `CRITICA`.
+  4. Mantener encendido el switch `Incluir Fila de Totales Contables`.
+  5. Clic en `Compilar Reporte Dinámico`.
+  6. **Resultado:** Se proyecta la fila del incidente `INC-SCZ-101` (Parque Industrial) y en el pie de tabla se muestra la fila roja destacada `TOTAL GENERAL` con `14,500 Litros` de agua y `3 Unidades`. Se habilitan los botones `Descargar Excel OpenPyXL` y `Descargar PDF WeasyPrint`.
+
+---
+
+### EJEMPLO 2: Flota Operativa en Escena y Disponibilidad Hídrica
+* **Instrucción Verbal / Prompt:**
+  > *"Central de Crisis, requiero reporte dinámico de la flota de camiones que se encuentran actualmente En Escena y Disponibles en todos los cuadrantes. Detallar únicamente las columnas: Unidad, Placa Oficial, Tipo de Vehículo, Estado Operativo, Capacidad Máxima y Nivel de Agua Actual. Calcular la sumatoria total de agua disponible en la flota y exportar en formato Excel OpenPyXL."*
+* **Columnas Solicitadas:** `Unidad / ID`, `Placa Oficial`, `Tipo de Vehículo`, `Estado Operativo`, `Capacidad Tanque (L)`, `Agua Actual (L)`.
+* **Criterios de Selección:**
+  - Cuadrante: `TODOS`
+  - Estado: `EN_ESCENA` (o `DISPONIBLE`)
+* **Fila de Totales:** Activada (`true`) sumando `capacidad_max` y `agua_actual`.
+* **Formato de Salida:** `Excel OpenPyXL`.
+* **Verificación de Salida:**
+  1. Seleccionar tabla `Flota de Camiones`.
+  2. Marcar las 6 columnas indicadas.
+  3. Elegir formato `Excel OpenPyXL`.
+  4. Clic en `Compilar Reporte Dinámico`.
+  5. **Resultado:** Se despliegan las unidades vehiculares filtradas con su telemetría de agua, la fila final `TOTAL GENERAL` suma los litros exactos en reserva y el botón primario de descarga es `Descargar Excel OpenPyXL`. Al hacer clic, descarga el archivo CSV/Excel formateado.
+
+---
+
+### EJEMPLO 3: Red de Hidrantes Operativos Cuadrante Centro y Caudales
+* **Instrucción Verbal / Prompt:**
+  > *"Control de Abastecimiento Hídrico. Compilar reporte táctico de la red de hidrantes con estado Operativo en el Cuadrante Centro y Norte. Mostrar las columnas: Código de Hidrante, Ubicación o Calle, Caudal en Litros por Minuto, Presión en Bar y Tipo de Acople. Incluir la fila de totales con el caudal hídrico consolidado en formato PDF WeasyPrint."*
+* **Columnas Solicitadas:** `Código Hidrante`, `Ubicación / Calle`, `Caudal (Litros/Min)`, `Presión de Red (Bar)`, `Tipo de Acople`.
+* **Criterios de Selección:**
+  - Cuadrante: `CENTRO` (o `NORTE`)
+  - Estado: `OPERATIVO`
+* **Fila de Totales:** Activada (`true`) totalizando `caudal_lpm`.
+* **Formato de Salida:** `PDF WeasyPrint`.
+* **Verificación de Salida:**
+  1. Seleccionar tabla `Red de Hidrantes`.
+  2. Marcar las columnas de caudal, presión y acople.
+  3. Fijar Estado en `OPERATIVO`.
+  4. Elegir formato `PDF WeasyPrint`.
+  5. Clic en `Compilar Reporte Dinámico`.
+  6. **Resultado:** Se visualizan los hidrantes operativos (excluyendo el HID-SCZ-103 que está fuera de servicio), se totaliza el caudal sumado (`2,500 L/min` en Centro o `4,000 L/min` sumado Norte) y se habilita el botón `Descargar PDF WeasyPrint`. Al hacer clic se genera la vista oficial imprimible de alta fidelidad.
+
+---
+
+### EJEMPLO 4: Almacén de Insumos - Stock de Espumógenos AFFF y Químicos Críticos
+* **Instrucción Verbal / Prompt:**
+  > *"Mando de Logística y Suministros. Generar reporte de inventario del almacén de insumos filtrando materiales con nivel de stock Normal y Crítico de la categoría Químico y EPP en la Estación Central. Seleccionar las columnas: Código de Insumo, Descripción del Material, Categoría Táctica, Stock Existente, Unidad de Medida y Valor Estimado en Bolivianos. Incluir la suma total del valor valorizado y compilar en Ambos formatos, Excel y PDF."*
+* **Columnas Solicitadas:** `Código Insumo`, `Descripción del Material`, `Categoría Táctica`, `Stock Existente`, `Unidad de Medida`, `Valor Estimado (Bs)`.
+* **Criterios de Selección:**
+  - Cuadrante / Estación: `Central`
+  - Estado de Stock: `NORMAL`
+* **Fila de Totales:** Activada (`true`) sumando `cantidad` y `valor_estimado_bs`.
+* **Formato de Salida:** `Ambos (Excel + PDF)`.
+* **Verificación de Salida:**
+  1. Seleccionar tabla `Almacén de Insumos`.
+  2. Ajustar los criterios de bodega y columnas valorizadas.
+  3. Presionar `Compilar Reporte Dinámico`.
+  4. **Resultado:** Despliega el inventario valorizado de espumógenos AFFF y trajes HazMat, calcula la sumatoria económica contable en Bolivianos en la fila de totales y provee descargas en ambos formatos.
+
+---
+
+### EJEMPLO 5: Consolidado Operacional para Cierre de Emergencia
+* **Instrucción Verbal / Prompt:**
+  > *"Comando Departamental de Bomberos Santa Cruz. Generar informe de cierre operacional de siniestros en estado En Combate y Controlado en el Cuadrante Sur y Oeste. Proyectar las columnas: Código, Tipo, Zona, Severidad, Agua Consumida y Espumógeno Utilizado. Totalizar consumo acumulado de agua y espumógeno y generar descarga dual en PDF WeasyPrint y Hoja de Cálculo Excel OpenPyXL."*
+* **Columnas Solicitadas:** `Código Incidente`, `Tipo de Emergencia`, `Severidad / Riesgo`, `Dirección / Zona`, `Agua Usada (Litros)`, `Espuma Usada (Litros)`.
+* **Criterios de Selección:**
+  - Cuadrantes: `SUR` o `OESTE`
+  - Estados: `EN_COMBATE` / `CONTROLADO`
+* **Fila de Totales:** Activada (`true`) con balance hídrico completo.
+* **Formato de Salida:** `Ambos (Excel + PDF)`.
+* **Verificación de Salida:**
+  1. Ingresar el texto en la caja del `Modo Prompt & Voz`.
+  2. Presionar `Generar por Prompt`.
+  3. **Resultado:** El motor RAG analiza determinísticamente las entidades solicitadas, compila el informe Markdown estructurado con tablas ASCII, genera el resumen ejecutivo y sintetiza el briefing radial con Edge-TTS para reproducción inmediata.
+
+---
+
+## 4. Matriz de Cobertura de Requisitos de Examen
+
+| Requisito de Examen | Elemento en Frontend | Estado |
+| :--- | :--- | :--- |
+| **Entrada por Prompt** | Textarea reactiva con placeholder táctico en `Modo Prompt & Voz` | Implementado |
+| **Entrada por Audio (Whisper)** | Selector de archivo radial y llamada a pipeline Faster-Whisper ASR | Implementado |
+| **Especificación de Columnas** | Lista de checkboxes dinámicos con contador, acciones rápidas y símbolo &Sigma; | Implementado |
+| **Criterios de Selección** | Filtros tácticos por Cuadrante, Estado Operativo, Severidad y Término libre | Implementado |
+| **Salida en Excel OpenPyXL** | Selector de formato y botón de exportación a `.xlsx` / `.csv` | Implementado |
+| **Salida en PDF WeasyPrint** | Selector de formato y botón de exportación a documento de alta fidelidad | Implementado |
+| **Fila de Totales Contables** | Switch táctico y renderizado de fila destacada con sumas deterministas | Implementado |
+| **Barra de Progreso Táctica** | Indicador de avance 0% a 100% con fases operacionales visibles | Implementado |
+| **Conexión a Base de Datos** | Endpoints `/esquemas-tablas` y `/generar-dinamico` con mock fallback determinista | Implementado |
+

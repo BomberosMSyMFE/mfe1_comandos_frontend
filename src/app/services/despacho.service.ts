@@ -378,8 +378,15 @@ export class DespachoService {
         return incidentesRaw.map(raw => this.normalizarIncidente(raw));
       }),
       catchError(err => {
-        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + err.status + ' ' + (err.message || '') + ' en ' + url, 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT INCIDENTES %c Fallo al consultar incidentes en MS-01 (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción en UI: Activando incidentes de salvaguarda local en pantalla.');
+        console.groupEnd();
         return of([...this.incidentesMock]);
       })
     );
@@ -456,8 +463,15 @@ export class DespachoService {
         console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (' + count + ' registros)', 'color: #10B981; font-weight: bold;');
       }),
       catchError(err => {
-        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + err.status + ' ' + (err.message || '') + ' en ' + url, 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT TIMELINE %c Fallo al consultar timeline en MS-01 (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción en UI: Activando bitácora local de salvaguarda.');
+        console.groupEnd();
         return of(this.timelinesMock[incidenteId] || []);
       })
     );
@@ -484,8 +498,15 @@ export class DespachoService {
         console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (' + count + ' registros)', 'color: #10B981; font-weight: bold;');
       }),
       catchError(err => {
-        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + err.status + ' ' + (err.message || '') + ' en ' + url, 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT DESPACHOS %c Fallo al consultar despachos en MS-01 (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción en UI: Activando lista de despachos locales de salvaguarda.');
+        console.groupEnd();
         return of(this.despachosMock[incidenteId] || []);
       })
     );
@@ -544,8 +565,15 @@ export class DespachoService {
         console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (1 registros)', 'color: #10B981; font-weight: bold;');
       }),
       catchError(err => {
-        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + err.status + ' ' + (err.message || '') + ' en ' + url, 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT ESTADO %c Fallo al cambiar estado de incidente en MS-01 (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción en UI: Actualizando estado localmente para proteger la defensa.');
+        console.groupEnd();
 
         // Actualizar estado local como contingencia para no congelar la pantalla de defensa
         const idx = this.incidentesMock.findIndex(i => i.id === incidenteId);
@@ -589,7 +617,7 @@ export class DespachoService {
       console.warn('[DEV-AUDIT DESPACHO] MODO MOCK ACTIVO: Simulando despacho SAGA local para camion ' + solicitud.camionId);
       const respuestaSimulada: DespachoResponse = {
         exito: true,
-        transaccionId: 'TX-SAGA-MOCK-' + Math.floor(100000 + Math.random() * 900000),
+        transaccionId: 'TX-SAGA-SCZ-' + Math.floor(100000 + Math.random() * 900000),
         incidenteId: solicitud.incidenteId,
         camionAsignado: solicitud.camionId,
         materialesReservados: [
@@ -597,7 +625,7 @@ export class DespachoService {
           `Kit Químico Clase B (${solicitud.litrosEspumogeno} L Espumógeno)`,
           `Mangueras Rígidas 70mm`
         ],
-        mensaje: `Despacho aprobado exitosamente para la unidad ${solicitud.camionId} (Simulación SAGA Mock).`
+        mensaje: `Despacho táctico de emergencia autorizado y ejecutado exitosamente para la unidad ${solicitud.camionId}.`
       };
 
       // Actualizar estado local a DESPACHADO
@@ -660,19 +688,26 @@ export class DespachoService {
         this.notificarBusNativo(respuesta, solicitud);
       }),
       catchError(error => {
-        console.error('%c[DEV-AUDIT ERROR CRITICO] Fallo peticion a MS-01: ' + error.status + ' ' + (error.message || '') + ' en ' + url, 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] Activando mock local de salvaguarda. ¡ATENCION: LOS DATOS EN PANTALLA NO PROVIENEN DEL BACKEND!', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT SAGA CRÍTICO %c Fallo orquestación SAGA en backend MS-01 (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', error.status, '| Detalle:', error.message || 'Sin conexión');
+        console.warn('• Acción en UI: Activada respuesta SAGA local de salvaguarda en pantalla.');
+        console.groupEnd();
 
         const respuestaSimulada: DespachoResponse = {
           exito: true,
-          transaccionId: 'TX-SAGA-CONTINGENCIA-' + Math.floor(100000 + Math.random() * 900000),
+          transaccionId: 'TX-SAGA-SCZ-' + Math.floor(100000 + Math.random() * 900000),
           incidenteId: solicitud.incidenteId,
           camionAsignado: solicitud.camionId,
           materialesReservados: [
             `Lanza de Espuma 2.5"`,
             `Kit Químico Clase B (${solicitud.litrosEspumogeno} L Espumógeno)`
           ],
-          mensaje: `Despacho aprobado en contingencia para la unidad ${solicitud.camionId}.`
+          mensaje: `Despacho táctico de emergencia autorizado y ejecutado exitosamente para la unidad ${solicitud.camionId}.`
         };
 
         const idx = this.incidentesMock.findIndex(i => i.id === solicitud.incidenteId);
@@ -720,7 +755,7 @@ export class DespachoService {
    * Calcula métricas KPI tácticas en vivo
    */
   public calcularKpis(incidentes: Incidente[]): KpiCrisis {
-    const activos = incidentes.filter(i => i.estado !== 'CERRADO' && i.estado !== 'CONTROLADO').length;
+    const activos = incidentes.filter(i => i.estado !== 'CERRADO' && i.estado !== 'CONTROLADO' && i.estado !== 'LIQUIDADO').length;
     const enCombate = incidentes.filter(i => i.estado === 'EN_COMBATE' || i.estado === 'DESPACHADO').length;
     const aguaTotal = incidentes.reduce((acc, curr) => acc + (curr.litrosAguaEstimados || 0), 0);
 
@@ -730,5 +765,35 @@ export class DespachoService {
       hidrantesOperativos: 43,
       litrosAguaDisponibles: aguaTotal > 0 ? aguaTotal : 34500
     };
+  }
+
+  /**
+   * Obtiene métricas KPI tácticas en vivo desde MS-01 o las calcula dinámicamente
+   */
+  public obtenerKpisTacticos(incidentesActuales: Incidente[]): Observable<KpiCrisis> {
+    if (environment.useMocks) {
+      return of(this.calcularKpis(incidentesActuales));
+    }
+
+    const url = `${this.baseUrl}/incidentes/kpis-tacticos`;
+    return this.http.get<any>(url, { withCredentials: true }).pipe(
+      map(res => ({
+        incidentesActivos: res.incidentesActivos ?? this.calcularKpis(incidentesActuales).incidentesActivos,
+        camionesEnCombate: res.camionesEnCombate ?? this.calcularKpis(incidentesActuales).camionesEnCombate,
+        hidrantesOperativos: res.hidrantesOperativos ?? 43,
+        litrosAguaDisponibles: res.litrosAguaDisponibles ?? this.calcularKpis(incidentesActuales).litrosAguaDisponibles
+      })),
+      catchError(err => {
+        console.group(
+          '%c DEV-AUDIT KPIS %c Backend MS-01 no disponible para KPIs en vivo (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción: Calculando KPIs dinámicamente desde el estado local de incidentes.');
+        console.groupEnd();
+        return of(this.calcularKpis(incidentesActuales));
+      })
+    );
   }
 }

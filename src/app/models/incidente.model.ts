@@ -1,6 +1,6 @@
 export type NivelRiesgo = 'CRITICO' | 'ALERTA' | 'CONTROLADO';
 
-export type EstadoIncidente = 'PENDIENTE' | 'DESPACHADO' | 'EN_COMBATE' | 'CONTROLADO' | 'CERRADO';
+export type EstadoIncidente = 'PENDIENTE' | 'DESPACHADO' | 'EN_COMBATE' | 'CONTROLADO' | 'CERRADO' | 'LIQUIDADO';
 
 export type TipoIncidente = 'ESTRUCTURAL' | 'FORESTAL' | 'QUIMICO' | 'RESCATE' | 'VEHICULAR';
 

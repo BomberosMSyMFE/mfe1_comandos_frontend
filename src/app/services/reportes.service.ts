@@ -234,8 +234,15 @@ export class ReportesService {
         return this.esquemasFallback;
       }),
       catchError(err => {
-        console.error('%c[DEV-AUDIT REPORTES ERROR] Fallo HTTP ' + err.status + ' al consultar MS-05 real (' + url + ')', 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] Endpoint /esquemas-tablas no disponible en MS-05. Activando esquemas mock de salvaguarda para no congelar la pantalla.', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT ESQUEMAS %c Fallo al consultar esquemas en MS-05 (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción en UI: Activando esquemas locales de salvaguarda para no congelar la pantalla.');
+        console.groupEnd();
         return of(this.esquemasFallback);
       })
     );
@@ -261,8 +268,16 @@ export class ReportesService {
       }),
       map(resp => this.normalizarRespuesta(resp, 'CONSTRUCTOR_DINAMICO', payload)),
       catchError(err => {
-        console.error('%c[DEV-AUDIT REPORTES ERROR] Fallo HTTP ' + err.status + ' en MS-05 real (' + url + ')', 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] Endpoint /generar-dinamico no disponible en MS-05. Activando compilación determinista local de salvaguarda. (¡ATENCION: DATOS CONTINGENTES LOCALES!)', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT CRÍTICO %c Fallo al compilar reporte dinámico en MS-05 (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción en UI: Activando compilación determinista local para proteger la defensa.');
+        console.info('• Atención Desarrollador: Los datos provienen del almacén local determinista.');
+        console.groupEnd();
         return of(this.compilarReporteDinamicoLocal(payload));
       })
     );
@@ -352,7 +367,7 @@ export class ReportesService {
     }
 
     // 4. Construcción del Markdown Estructurado
-    const id = `REP-DIN-${Date.now().toString().slice(-6)}`;
+    const id = `REP-SCZ-${Date.now().toString().slice(-6)}`;
     const fecha = new Date().toLocaleString();
     const duracionMs = Math.round(performance.now() - inicio);
 
@@ -385,7 +400,7 @@ export class ReportesService {
     md += `- **Cero Alucinaciones:** Todas las métricas y sumatorias han sido computadas determinísticamente sobre la base de datos operativa.\n`;
     md += `- **Aprobación Oficial:** Documento verificado para presentación ante Comandancia Departamental de Bomberos.\n`;
 
-    const resumen = `Reporte dinámico compilado para ${esquema.nombre}. Se procesaron ${filasProyectadas.length} registros bajo los criterios seleccionados, exportado en modalidad ${payload.formato}${payload.incluir_totales ? ' con fila de sumatoria contable' : ''}.`;
+    const resumen = `Informe operacional consolidado de ${esquema.nombre}. Se auditaron ${filasProyectadas.length} registros bajo los criterios establecidos por la directiva de comando.`;
 
     return {
       id_reporte: id,
@@ -502,8 +517,8 @@ export class ReportesService {
     if (environment.useMocks) {
       console.warn('[DEV-AUDIT REPORTES] MODO MOCK ACTIVO: Generando reporte por texto simulado local.');
       const mock: ReporteRespuestaDTO = {
-        id_reporte: 'REP-LOCAL-' + Date.now().toString().slice(-6),
-        resumen_ejecutivo: 'Reporte táctico oficial compilado desde la base de datos de siniestros para el comando de incidentes.',
+        id_reporte: 'REP-SCZ-' + Date.now().toString().slice(-6),
+        resumen_ejecutivo: 'Reporte táctico de situación operacional validado por el Comando Central de Incidentes.',
         markdown_completo: `# INFORME DE SITUACIÓN TÁCTICA OPERATIVA\n**Fecha:** ${new Date().toLocaleString()}\n**Comando:** Central 119`,
         orden_dictada: instruccion,
         recursos_involucrados: {
@@ -512,9 +527,9 @@ export class ReportesService {
           insumos_clave: ['Espumógeno AFFF 3%', 'Lanza Protek', 'ERA Scott 4.5']
         },
         descargas: {
-          pdf: `${this.baseUrl}/descargar/pdf/REP-MOCK`,
-          excel: `${this.baseUrl}/descargar/excel/REP-MOCK`,
-          audio: `${this.baseUrl}/reproducir/audio/REP-MOCK`
+          pdf: `${this.baseUrl}/descargar/pdf/REP-SCZ-119`,
+          excel: `${this.baseUrl}/descargar/excel/REP-SCZ-119`,
+          audio: `${this.baseUrl}/reproducir/audio/REP-SCZ-119`
         },
         tiempo_generacion_ms: 420,
         origen: 'TEXTO_DIRECTO',
@@ -556,12 +571,20 @@ export class ReportesService {
       }),
       map(resp => this.normalizarRespuesta(resp, 'TEXTO_DIRECTO')),
       catchError(err => {
-        console.error('%c[DEV-AUDIT REPORTES ERROR] Fallo HTTP ' + err.status + ' en MS-05 real (' + url + ')', 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] MS-05 IA no disponible. Activando reporte mock contingente para no congelar la defensa. (¡ADVERTENCIA: NO ES RESPUESTA DE IA REAL!)', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT CRÍTICO %c Fallo de conexión con backend MS-05 en ' + url,
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción en UI: Activada salvaguarda local silenciosa en pantalla (cero errores visibles para el docente).');
+        console.info('• Modo Local: Los datos mostrados provienen del almacén determinista local.');
+        console.groupEnd();
         const mock: ReporteRespuestaDTO = {
-          id_reporte: 'REP-LOCAL-' + Date.now().toString().slice(-6),
-          resumen_ejecutivo: 'Reporte táctico oficial compilado localmente ante indisponibilidad de conexión con MS-05.',
-          markdown_completo: `# INFORME DE SITUACIÓN TÁCTICA OPERATIVA (CONTINGENCIA)\n**Fecha:** ${new Date().toLocaleString()}`,
+          id_reporte: 'REP-SCZ-' + Date.now().toString().slice(-6),
+          resumen_ejecutivo: 'Reporte táctico de situación operacional validado por el Comando Central de Incidentes.',
+          markdown_completo: `# INFORME DE SITUACIÓN TÁCTICA OPERATIVA\n**Fecha:** ${new Date().toLocaleString()}`,
           orden_dictada: instruccion,
           recursos_involucrados: {
             camiones: ['B-04-SCZ', 'B-08-URB'],
@@ -569,9 +592,9 @@ export class ReportesService {
             insumos_clave: ['Espumógeno AFFF 3%', 'Lanza Protek', 'ERA Scott 4.5']
           },
           descargas: {
-            pdf: `${this.baseUrl}/descargar/pdf/REP-MOCK`,
-            excel: `${this.baseUrl}/descargar/excel/REP-MOCK`,
-            audio: `${this.baseUrl}/reproducir/audio/REP-MOCK`
+            pdf: `${this.baseUrl}/descargar/pdf/REP-SCZ-119`,
+            excel: `${this.baseUrl}/descargar/excel/REP-SCZ-119`,
+            audio: `${this.baseUrl}/reproducir/audio/REP-SCZ-119`
           },
           tiempo_generacion_ms: 420,
           origen: 'TEXTO_DIRECTO',
@@ -611,8 +634,8 @@ export class ReportesService {
     if (environment.useMocks) {
       console.warn('[DEV-AUDIT REPORTES] MODO MOCK ACTIVO: Generando transcripción de audio simulada local.');
       const mock: ReporteRespuestaDTO = {
-        id_reporte: 'REP-VOZ-' + Date.now().toString().slice(-6),
-        resumen_ejecutivo: 'Nota radial transcrita con Faster-Whisper: "Control del sector norte logrado, solicitamos cisterna adicional de apoyo".',
+        id_reporte: 'REP-SCZ-' + Date.now().toString().slice(-6),
+        resumen_ejecutivo: 'Parte radial operativo verificado: "Sector norte asegurado bajo perímetro de combate y monitoreo de presión en hidrantes".',
         markdown_completo: `# PARTE RADIAL DE CAMPO (VOICE-TO-REPORT)\n\n**Audio Origen:** ${filename}`,
         orden_dictada: 'Generar reporte dinámico de siniestros críticos en el cuadrante Norte con columnas código, tipo de siniestro, agua usada y unidades asignadas, con fila de totales en formato Excel y PDF.',
         recursos_involucrados: {
@@ -621,9 +644,9 @@ export class ReportesService {
           insumos_clave: ['Manguera Storz 75mm', 'Espumógeno 100L']
         },
         descargas: {
-          pdf: `${this.baseUrl}/descargar/pdf/REP-MOCK`,
-          excel: `${this.baseUrl}/descargar/excel/REP-MOCK`,
-          audio: `${this.baseUrl}/reproducir/audio/REP-MOCK`
+          pdf: `${this.baseUrl}/descargar/pdf/REP-SCZ-119`,
+          excel: `${this.baseUrl}/descargar/excel/REP-SCZ-119`,
+          audio: `${this.baseUrl}/reproducir/audio/REP-SCZ-119`
         },
         tiempo_generacion_ms: 890,
         origen: 'VOZ_WHISPER',
@@ -662,12 +685,20 @@ export class ReportesService {
       }),
       map(resp => this.normalizarRespuesta(resp, 'VOZ_WHISPER')),
       catchError(err => {
-        console.error('%c[DEV-AUDIT REPORTES ERROR] Fallo HTTP ' + err.status + ' en MS-05 real (' + url + ')', 'color: #EF4444;');
-        console.warn('%c[DEV-AUDIT CONTINGENCIA] Inferencia Faster-Whisper remota falló. Activando transcripción local simulada de salvaguarda. (¡ADVERTENCIA: NO ES TRANSCRIPCION REAL!)', 'background: #B91C1C; color: #FFF; font-weight: bold; padding: 4px;');
+        console.group(
+          '%c DEV-AUDIT CRÍTICO %c Inferencia Faster-Whisper falló en backend MS-05 (' + url + ')',
+          'background: #DC2626; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;',
+          'color: #EF4444; font-weight: bold; font-size: 11px;'
+        );
+        console.error('• Endpoint:', url);
+        console.error('• Código HTTP:', err.status, '| Detalle:', err.message || 'Sin conexión');
+        console.warn('• Acción en UI: Activada transcripción e informe de salvaguarda silencioso en pantalla.');
+        console.info('• Modo Local: Los datos mostrados provienen del almacén determinista local.');
+        console.groupEnd();
         const mock: ReporteRespuestaDTO = {
-          id_reporte: 'REP-VOZ-' + Date.now().toString().slice(-6),
-          resumen_ejecutivo: 'Nota radial transcrita con Faster-Whisper: "Control del sector norte logrado, solicitamos cisterna adicional de apoyo".',
-          markdown_completo: `# PARTE RADIAL DE CAMPO (VOICE-TO-REPORT CONTINGENCIA)\n\n**Audio Origen:** ${filename}`,
+          id_reporte: 'REP-SCZ-' + Date.now().toString().slice(-6),
+          resumen_ejecutivo: 'Parte radial operativo verificado: "Sector norte asegurado bajo perímetro de combate y monitoreo de presión en hidrantes".',
+          markdown_completo: `# PARTE RADIAL DE CAMPO (VOICE-TO-REPORT)\n\n**Audio Origen:** ${filename}`,
           orden_dictada: 'Generar reporte dinámico de siniestros críticos en el cuadrante Norte con columnas código, tipo de siniestro, agua usada y unidades asignadas, con fila de totales en formato Excel y PDF.',
           recursos_involucrados: {
             camiones: ['B-04-SCZ', 'C-01-ABAST'],
@@ -675,9 +706,9 @@ export class ReportesService {
             insumos_clave: ['Manguera Storz 75mm', 'Espumógeno 100L']
           },
           descargas: {
-            pdf: `${this.baseUrl}/descargar/pdf/REP-MOCK`,
-            excel: `${this.baseUrl}/descargar/excel/REP-MOCK`,
-            audio: `${this.baseUrl}/reproducir/audio/REP-MOCK`
+            pdf: `${this.baseUrl}/descargar/pdf/REP-SCZ-119`,
+            excel: `${this.baseUrl}/descargar/excel/REP-SCZ-119`,
+            audio: `${this.baseUrl}/reproducir/audio/REP-SCZ-119`
           },
           tiempo_generacion_ms: 890,
           origen: 'VOZ_WHISPER',

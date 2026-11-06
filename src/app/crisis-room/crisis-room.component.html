@@ -23,25 +23,34 @@
       <button
         class="tab-btn"
         [class.tab-btn-active]="seccionActiva() === 'CRISIS'"
-        (click)="seccionActiva.set('CRISIS')"
+        [class.tab-btn-restricted]="rolUsuario() === 'BOMBERO'"
+        (click)="cambiarSeccion('CRISIS')"
+        [title]="rolUsuario() === 'BOMBERO' ? 'Acceso restringido para rol BOMBERO' : 'Sala de Crisis & Incidentes'"
       >
-        <i class="bi bi-kanban"></i> Sala de Crisis &amp; Incidentes
+        <i class="bi bi-kanban"></i>
+        <span>Sala de Crisis &amp; Incidentes</span>
+        <i *ngIf="rolUsuario() === 'BOMBERO'" class="bi bi-lock-fill tab-lock-icon" title="Restringido para Bomberos"></i>
       </button>
 
       <button
         class="tab-btn"
         [class.tab-btn-active]="seccionActiva() === 'SAGA'"
-        (click)="seccionActiva.set('SAGA')"
+        [class.tab-btn-restricted]="rolUsuario() === 'BOMBERO'"
+        (click)="cambiarSeccion('SAGA')"
+        [title]="rolUsuario() === 'BOMBERO' ? 'Acceso restringido para rol BOMBERO' : 'Transacciones SAGA'"
       >
-        <i class="bi bi-diagram-3"></i> Transacciones SAGA
+        <i class="bi bi-diagram-3"></i>
+        <span>Transacciones SAGA</span>
+        <i *ngIf="rolUsuario() === 'BOMBERO'" class="bi bi-lock-fill tab-lock-icon" title="Restringido para Bomberos"></i>
       </button>
 
       <button
         class="tab-btn"
         [class.tab-btn-active]="seccionActiva() === 'REPORTES'"
-        (click)="seccionActiva.set('REPORTES')"
+        (click)="cambiarSeccion('REPORTES')"
       >
-        <i class="bi bi-cpu"></i> Reportes Multimodales IA
+        <i class="bi bi-cpu"></i>
+        <span>Reportes Multimodales IA</span>
       </button>
     </div>
 
@@ -49,7 +58,10 @@
       <span *ngIf="estaConectadoWs()" class="badge-fire badge-fire-success font-tactical-mono">
         <i class="bi bi-reception-4"></i> WSS ACTIVO (3000)
       </span>
-      <span *ngIf="!estaConectadoWs()" class="badge-fire badge-fire-warning font-tactical-mono">
+      <span *ngIf="!estaConectadoWs() && rolUsuario() === 'BOMBERO'" class="badge-fire badge-fire-success font-tactical-mono">
+        <i class="bi bi-shield-check"></i> SESIÓN BOMBERO ACTIVA
+      </span>
+      <span *ngIf="!estaConectadoWs() && rolUsuario() !== 'BOMBERO'" class="badge-fire badge-fire-warning font-tactical-mono">
         <i class="bi bi-arrow-repeat"></i> CONECTANDO...
       </span>
     </div>
@@ -961,6 +973,45 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL TÁCTICA: ACCESO RESTRINGIDO • ROL NO AUTORIZADO (RBAC)            -->
+  <!-- ======================================================================= -->
+  <div *ngIf="modalRolNoAutorizado()" class="modal-backdrop modal-unauth-backdrop">
+    <div class="modal-dialog modal-unauth-dialog">
+      <div class="unauth-modal-card">
+        <button class="unauth-modal-close" (click)="cerrarModalRolNoAutorizado()" title="Cerrar notificación">
+          <i class="bi bi-x-lg"></i>
+        </button>
+
+        <div class="unauth-icon-wrapper">
+          <i class="bi bi-shield-x"></i>
+        </div>
+
+        <div class="unauth-badge-role">
+          <span class="badge-fire badge-fire-critical font-tactical-mono">
+            <i class="bi bi-shield-slash"></i> ROL ASIGNADO: {{ rolUsuario() }}
+          </span>
+        </div>
+
+        <h2 class="unauth-title">ACCESO RESTRINGIDO &bull; ROL NO AUTORIZADO</h2>
+
+        <p class="unauth-desc">
+          Su cuenta actual tiene asignado el rol <strong>BOMBERO</strong>. Este rol cuenta únicamente con autorización para consultar y generar Reportes Tácticos Oficiales. Las funciones de Sala de Crisis, Despacho Operativo y Orquestación SAGA están reservadas exclusivamente para Operadores Tácticos y Administradores de Guardia.
+        </p>
+
+        <div class="unauth-modal-actions">
+          <button
+            type="button"
+            class="btn-fire-primary btn-lg"
+            (click)="irAModuloReportesPermitido()"
+          >
+            <i class="bi bi-file-earmark-bar-graph"></i> Ir a Módulo de Reportes Permitido
+          </button>
+        </div>
       </div>
     </div>
   </div>
