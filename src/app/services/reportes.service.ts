@@ -74,7 +74,10 @@ export interface ReporteRespuestaDTO {
   providedIn: 'root'
 })
 export class ReportesService {
-  private readonly baseUrl = `${environment.apiMs5Url}/reportes`;
+  // Asegura que no se duplique el sufijo /reportes si ya viene en environment.apiMs5Url
+  private readonly baseUrl = environment.apiMs5Url.endsWith('/reportes')
+    ? environment.apiMs5Url
+    : `${environment.apiMs5Url}/reportes`;
 
   // Esquemas deterministas oficiales para Sala de Situación y Comandos
   private readonly esquemasFallback: EsquemaTabla[] = [
@@ -440,7 +443,7 @@ export class ReportesService {
     origenFallback: 'VOZ_WHISPER' | 'TEXTO_DIRECTO' | 'CONSTRUCTOR_DINAMICO',
     payloadFallback?: ReporteDinamicoPayload
   ): ReporteRespuestaDTO {
-    const apiBase = environment.apiMs5Url.replace(/\/api\/v1\/?$/, '');
+    const apiBase = environment.apiMs5Url.replace(/\/api\/v1(\/reportes)?\/?$/, '');
 
     const normalizarUrl = (url?: string): string => {
       if (!url) return '';

@@ -31,7 +31,7 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
   public seccionActiva = signal<'CRISIS' | 'SAGA' | 'REPORTES'>('CRISIS');
 
   // Control RBAC de Roles y Restricción Táctica
-  public rolUsuario = signal<'OPERADOR' | 'BOMBERO' | 'ADMINISTRADOR' | 'DESCONOCIDO'>('OPERADOR');
+  public rolUsuario = signal<'OPERADOR' | 'BOMBERO' | 'ADMINISTRADOR' | 'DESCONOCIDO'>('DESCONOCIDO');
   public modalRolNoAutorizado = signal<boolean>(false);
   private cleanupAuthListeners: (() => void) | null = null;
   private wsSuscrito = false;
@@ -164,10 +164,6 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.detectarRolUsuario();
     this.escucharCambiosAuth();
-    if (this.rolUsuario() !== 'BOMBERO') {
-      this.cargarDatosIniciales();
-    }
-    this.suscribirWebSockets();
   }
 
   ngOnDestroy(): void {
@@ -185,7 +181,7 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
 
     // 1. Primero verificar sessionStorage ('BOMBEROS_SSO_USER')
     try {
-      const stored = sessionStorage.getItem('BOMBEROS_SSO_USER');
+      const stored = typeof window !== 'undefined' ? sessionStorage.getItem('BOMBEROS_SSO_USER') : null;
       if (stored) {
         const user = JSON.parse(stored);
         if (user && user.rol) {
@@ -195,6 +191,9 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
             this.rolUsuario.set(rolDetectado!);
             if (rolDetectado === 'BOMBERO') {
               this.seccionActiva.set('REPORTES');
+            } else {
+              this.cargarDatosIniciales();
+              this.suscribirWebSockets();
             }
           }
         }
@@ -203,17 +202,16 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
       console.warn('[MFE1 RBAC] Error leyendo BOMBEROS_SSO_USER en sessionStorage:', e);
     }
 
-    // 2. Si no existe en sessionStorage (o para revalidar), llamada HTTP con credenciales HttpOnly
+    // 2. Revalidar con llamada HTTP con credenciales HttpOnly (/auth/me)
     const authMeUrl = `${environment.apiMs1Url}/auth/me`;
     this.http.get<{ usuarioId?: string; email?: string; rol?: string }>(authMeUrl, { withCredentials: true }).subscribe({
       next: (res) => {
         if (res && res.rol) {
           const rolHttp = String(res.rol).toUpperCase() as 'OPERADOR' | 'BOMBERO' | 'ADMINISTRADOR';
-          const anterior = this.rolUsuario();
           this.rolUsuario.set(rolHttp);
           if (rolHttp === 'BOMBERO') {
             this.seccionActiva.set('REPORTES');
-          } else if (anterior === 'BOMBERO' && (rolHttp === 'OPERADOR' || rolHttp === 'ADMINISTRADOR')) {
+          } else if (rolHttp === 'OPERADOR' || rolHttp === 'ADMINISTRADOR') {
             this.cargarDatosIniciales();
             this.suscribirWebSockets();
           }
@@ -240,11 +238,10 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
       }
       const rol = String(rolRaw).toUpperCase();
       if (rol === 'BOMBERO' || rol === 'OPERADOR' || rol === 'ADMINISTRADOR') {
-        const anterior = this.rolUsuario();
         this.rolUsuario.set(rol as any);
         if (rol === 'BOMBERO') {
           this.seccionActiva.set('REPORTES');
-        } else if (anterior === 'BOMBERO' && (rol === 'OPERADOR' || rol === 'ADMINISTRADOR')) {
+        } else if (rol === 'OPERADOR' || rol === 'ADMINISTRADOR') {
           this.cargarDatosIniciales();
           this.suscribirWebSockets();
         }
