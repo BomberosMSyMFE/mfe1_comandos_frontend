@@ -909,7 +909,7 @@
             >
               <option value="" disabled>Seleccione una unidad disponible...</option>
               <option *ngFor="let cam of camiones()" [value]="cam.id">
-                {{ cam.placa }} - {{ cam.tipo }} (Agua: {{ cam.capacidadAguaL | number }} L) [{{ cam.estado }}]
+                [{{ cam.id }}] {{ cam.placa }} - {{ cam.tipo }} (Agua: {{ cam.capacidadAguaL | number }} L) [{{ cam.estado }}]
               </option>
             </select>
             <div *ngIf="erroresCampos().camion" class="field-error-text">

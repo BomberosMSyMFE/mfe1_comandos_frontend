@@ -360,14 +360,15 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
 
     this.subs.add(
       this.socketService.onIncidenteDespachado$.subscribe(despacho => {
+        const camionUnidad = despacho.camionAsignado || despacho.camion;
         this.incidentes.update(actuales =>
           actuales.map(inc =>
             inc.id === despacho.incidenteId
-              ? { ...inc, estado: 'DESPACHADO', camionAsignado: despacho.camionAsignado }
+              ? { ...inc, estado: 'DESPACHADO', camionAsignado: camionUnidad, unidadesAsignadas: (inc.unidadesAsignadas || 0) + 1 }
               : inc
           )
         );
-        this.mostrarToast('info', `Unidad ${despacho.camionAsignado} despachada al siniestro ${despacho.incidenteId}`);
+        this.mostrarToast('info', `Unidad ${camionUnidad} despachada al siniestro ${despacho.incidenteId}`);
       })
     );
 
@@ -562,11 +563,12 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
         this.enviandoDespacho.set(false);
         this.modalDespachoAbierto.set(false);
 
-        // Actualizar estado en la lista local
+        // Actualizar estado en la lista local con el camión confirmado por la respuesta SAGA
+        const camionConfirmado = respuesta.camionAsignado || camionId;
         this.incidentes.update(actuales =>
           actuales.map(item =>
             item.id === inc!.id
-              ? { ...item, estado: 'DESPACHADO', camionAsignado: camionId, unidadesAsignadas: (item.unidadesAsignadas || 0) + 1 }
+              ? { ...item, estado: 'DESPACHADO', camionAsignado: camionConfirmado, unidadesAsignadas: (item.unidadesAsignadas || 0) + 1 }
               : item
           )
         );
@@ -583,7 +585,7 @@ export class CrisisRoomComponent implements OnInit, OnDestroy {
 
         this.mostrarToast(
           'success',
-          `Despacho aprobado con éxito. SAGA completada para ${camionId} (TX: ${respuesta.transaccionId}).`
+          `Despacho aprobado con éxito. SAGA completada para ${camionConfirmado} (TX: ${respuesta.transaccionId}).`
         );
       },
       error: (err) => {
