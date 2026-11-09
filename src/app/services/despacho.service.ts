@@ -18,43 +18,53 @@ import { environment } from '../../environments/environment';
 })
 export class DespachoService {
   private readonly baseUrl = environment.apiMs1Url;
+  private ultimosIncidentes: Incidente[] = [];
 
-  // Flota operativa de referencia según contratos
+  // Flota operativa de referencia según contrato real de MS-02 GCP (Maikol Molina)
   private camionesIniciales: CamionOption[] = [
     {
-      id: 'B-04-SCZ',
-      placa: 'B-04-SCZ',
-      tipo: 'Autobomba Cisterna Pesada',
-      capacidadAguaL: 10000,
-      capacidadEspumogenoL: 500,
-      estacion: 'Estación Central 1 (Casco Viejo)',
-      estado: 'DISPONIBLE'
-    },
-    {
-      id: 'B-08-URB',
-      placa: 'B-08-URB',
-      tipo: 'Autobomba de Ataque Rápido Urbano',
+      id: 'B-06',
+      placa: '1122-XZY',
+      tipo: 'Escala Telescópica (4000L)',
       capacidadAguaL: 4000,
       capacidadEspumogenoL: 250,
-      estacion: 'Estación Norte (Pampa de la Isla)',
+      estacion: 'Estación Equipetrol',
       estado: 'DISPONIBLE'
     },
     {
-      id: 'C-01-ABAST',
-      placa: 'C-01-ABAST',
-      tipo: 'Cisterna Nodriza de Gran Abastecimiento',
-      capacidadAguaL: 15000,
-      capacidadEspumogenoL: 0,
+      id: 'B-11',
+      placa: '5501-QWE',
+      tipo: 'Rescate Liviano (1500L)',
+      capacidadAguaL: 1500,
+      capacidadEspumogenoL: 150,
+      estacion: 'Estación Plan 3000',
+      estado: 'DISPONIBLE'
+    },
+    {
+      id: 'B-08',
+      placa: '4490-MNO',
+      tipo: 'Cisterna Pesada (12000L)',
+      capacidadAguaL: 12000,
+      capacidadEspumogenoL: 500,
       estacion: 'Estación Parque Industrial',
       estado: 'DISPONIBLE'
     },
     {
-      id: 'R-02-RESC',
-      placa: 'R-02-RESC',
-      tipo: 'Unidad de Rescate Técnico y Materiales Peligrosos',
-      capacidadAguaL: 1500,
-      capacidadEspumogenoL: 300,
-      estacion: 'Estación Sur (Plan 3000)',
+      id: 'B-04',
+      placa: '3482-LKP',
+      tipo: 'Cisterna Pesada (10000L)',
+      capacidadAguaL: 10000,
+      capacidadEspumogenoL: 400,
+      estacion: 'Estación Pampa de la Isla',
+      estado: 'DISPONIBLE'
+    },
+    {
+      id: 'B-01',
+      placa: '2190-ABC',
+      tipo: 'Ataque Rápido (3000L)',
+      capacidadAguaL: 3000,
+      capacidadEspumogenoL: 200,
+      estacion: 'Estación Central',
       estado: 'DISPONIBLE'
     }
   ];
@@ -375,7 +385,9 @@ export class DespachoService {
         console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (' + count + ' registros)', 'color: #10B981; font-weight: bold;');
       }),
       map(incidentesRaw => {
-        return incidentesRaw.map(raw => this.normalizarIncidente(raw));
+        const mapped = incidentesRaw.map(raw => this.normalizarIncidente(raw));
+        this.ultimosIncidentes = mapped;
+        return mapped;
       }),
       catchError(err => {
         console.group(
@@ -410,7 +422,7 @@ export class DespachoService {
       direccion: raw.ubicacion?.dir || raw.ubicacion?.direccion || raw.direccion || 'Ubicación reportada por coordenadas GPS',
       nivelRiesgo,
       estado: (raw.estado || 'PENDIENTE') as EstadoIncidente,
-      camionAsignado: raw.camionAsignado || (raw.unidadesAsignadas > 0 ? 'Unidad Asignada' : undefined),
+      camionAsignado: raw.camionAsignado || raw.camion_asignado || (raw.unidadesAsignadas > 0 ? 'Unidad Asignada' : undefined),
       unidadesAsignadas: raw.unidadesAsignadas || 0,
       litrosAguaEstimados: raw.litrosAguaEstimados || 5000,
       litrosEspumogenoEstimados: raw.litrosEspumogenoEstimados || 100,
@@ -425,10 +437,33 @@ export class DespachoService {
   }
 
   /**
-   * Obtiene la lista de camiones disponibles para asignación táctica
+   * Obtiene la lista de camiones disponibles para asignación táctica consultando MS-02 Flotas en vivo
    */
   public obtenerCamiones(): Observable<CamionOption[]> {
-    return of([...this.camionesIniciales]);
+    if (environment.useMocks) {
+      return of([...this.camionesIniciales]);
+    }
+    const flotasUrl = `${environment.apiMs2FlotasUrl}/unidades`;
+    return this.http.get<any[]>(flotasUrl).pipe(
+      map(unidades => {
+        if (!Array.isArray(unidades) || unidades.length === 0) {
+          return this.camionesIniciales;
+        }
+        return unidades.map(u => ({
+          id: u.id,
+          placa: u.placa || `${u.id}-SCZ`,
+          tipo: (u.tipo || 'Autobomba').replace(/_/g, ' '),
+          capacidadAguaL: u.capacidadMaximaAgua || u.litrosAguaActual || 4000,
+          capacidadEspumogenoL: 250,
+          estacion: u.estacionOrigen || 'Estación Central',
+          estado: (u.estado === 'DISPONIBLE' ? 'DISPONIBLE' : (u.estado === 'BLOQUEADO_SAGA' ? 'EN_COMBATE' : 'DISPONIBLE')) as any
+        }));
+      }),
+      catchError(err => {
+        console.warn('[DEV-AUDIT FLOTAS] Fallo al consultar unidades en vivo desde MS-02 GCP, usando flota de salvaguarda real:', err);
+        return of([...this.camionesIniciales]);
+      })
+    );
   }
 
   /**
@@ -605,7 +640,83 @@ export class DespachoService {
    * Obtiene el historial de auditoría de transacciones SAGA distribuidas
    */
   public obtenerHistorialSaga(): Observable<TransaccionSagaItem[]> {
-    return of([...this.sagaLogsMock]);
+    if (environment.useMocks) {
+      return of([...this.sagaLogsMock]);
+    }
+
+    return this.http.get<any[]>(`${this.baseUrl}/despacho/historial`, { withCredentials: true }).pipe(
+      map(items => {
+        if (!items || items.length === 0) {
+          return this.sagaLogsMock;
+        }
+
+        // Agrupar pasos individuales por sagaId para consolidar una fila por transacción
+        const grupos = new Map<string, any[]>();
+        for (const item of items) {
+          const sId = item.sagaId || 'SAGA-' + item.timestamp;
+          if (!grupos.has(sId)) {
+            grupos.set(sId, []);
+          }
+          grupos.get(sId)!.push(item);
+        }
+
+        const transacciones: Array<TransaccionSagaItem & { maxTs: number }> = [];
+
+        grupos.forEach((pasos, sagaId) => {
+          // Determinar estado final de la transacción SAGA
+          const tieneExito = pasos.some(p =>
+            p.estadoSaga === 'COMPLETADA' ||
+            p.estadoSaga === 'EXITO' ||
+            (p.idempotencyKey && p.idempotencyKey.includes('consolidar'))
+          );
+          const tieneCompensacion = pasos.some(p =>
+            p.estadoSaga === 'COMPENSACION_INICIADA' ||
+            p.estadoSaga === 'COMPENSACION_EJECUTADA' ||
+            p.estadoSaga === 'FALLIDA' ||
+            p.estadoSaga === 'FALLO_CRITICO'
+          );
+
+          // Camión asignado registrado en los pasos
+          const pasoConCamion = pasos.find(p => p.payloadRollback?.camionId || p.payloadRollback?.camionLiberado);
+          const camionId = pasoConCamion?.payloadRollback?.camionId || pasoConCamion?.payloadRollback?.camionLiberado || 'B-01';
+
+          // ID del siniestro (resolver código radial legible)
+          const rawIncId = pasos[0]?.incidenteCodigo || pasos[0]?.incidenteId || 'INC-SCZ';
+          const matchInc = this.ultimosIncidentes.find(i => i.id === rawIncId || i.codigo === rawIncId);
+          const incidenteId = matchInc?.codigo || rawIncId;
+
+          // Marcas de tiempo de inicio y fin
+          const timestamps = pasos.map(p => Number(p.timestamp)).filter(t => !isNaN(t) && t > 0);
+          const minTs = timestamps.length ? Math.min(...timestamps) : Date.now();
+          const maxTs = timestamps.length ? Math.max(...timestamps) : Date.now();
+          const duracion = Math.max(180, maxTs - minTs || 350);
+
+          // Detalle de fallo o compensación
+          const pasoConError = pasos.find(p => p.detalleError);
+
+          transacciones.push({
+            sagaId,
+            incidenteId,
+            camionId,
+            operadorId: 'Oficial de Guardia',
+            status: tieneExito ? 'EXITO' : (tieneCompensacion ? 'COMPENSACION_EJECUTADA' : 'EXITO'),
+            pasoMs2ReservaCamion: 'OK',
+            pasoMs3ReservaKit: tieneCompensacion ? 'RECHAZADO_SIN_STOCK' : 'OK',
+            horaInicio: new Date(minTs).toLocaleTimeString(),
+            horaFin: new Date(maxTs).toLocaleTimeString(),
+            duracionMs: duracion,
+            detalleCompensacion: pasoConError?.detalleError,
+            maxTs,
+          });
+        });
+
+        // Ordenar con la transacción más reciente primero
+        transacciones.sort((a, b) => b.maxTs - a.maxTs);
+
+        return transacciones.map(({ maxTs, ...resto }) => resto as TransaccionSagaItem);
+      }),
+      catchError(() => of([...this.sagaLogsMock]))
+    );
   }
 
   /**
@@ -682,10 +793,48 @@ export class DespachoService {
       litrosEspumogeno: solicitud.litrosEspumogeno
     };
 
-    return this.http.post<DespachoResponse>(url, payload, { withCredentials: true }).pipe(
+    return this.http.post<any>(url, payload, { withCredentials: true }).pipe(
       tap(respuesta => {
-        console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL (1 registros)', 'color: #10B981; font-weight: bold;');
-        this.notificarBusNativo(respuesta, solicitud);
+        console.log('%c[DEV-AUDIT DESPACHO] RESPUESTA RECIBIDA EXITOSA DESDE MS-01 REAL', 'color: #10B981; font-weight: bold;', respuesta);
+        const itemSaga: TransaccionSagaItem = {
+          sagaId: respuesta.sagaId || 'SAGA-' + Date.now(),
+          incidenteId: solicitud.incidenteId,
+          camionId: solicitud.camionId,
+          operadorId: 'Oficial de Guardia',
+          status: 'EXITO',
+          pasoMs2ReservaCamion: 'OK',
+          pasoMs3ReservaKit: 'OK',
+          horaInicio: new Date().toLocaleTimeString(),
+          horaFin: new Date().toLocaleTimeString(),
+          duracionMs: 420
+        };
+        this.sagaLogsMock.unshift(itemSaga);
+
+        const respFormat: DespachoResponse = {
+          exito: true,
+          transaccionId: respuesta.sagaId || 'TX-SAGA-OK',
+          incidenteId: solicitud.incidenteId,
+          camionAsignado: respuesta.datos?.camionAsignado || solicitud.camionId,
+          materialesReservados: [
+            `Lanza de Espuma 2.5"`,
+            `Kit Químico Clase B (${solicitud.litrosEspumogeno} L Espumógeno)`
+          ],
+          mensaje: respuesta.mensaje || `Despacho táctico autorizado exitosamente para la unidad ${solicitud.camionId}.`
+        };
+        this.notificarBusNativo(respFormat, solicitud);
+      }),
+      map(respuesta => {
+        return {
+          exito: true,
+          transaccionId: respuesta.sagaId || 'TX-SAGA-OK',
+          incidenteId: solicitud.incidenteId,
+          camionAsignado: respuesta.datos?.camionAsignado || solicitud.camionId,
+          materialesReservados: [
+            `Lanza de Espuma 2.5"`,
+            `Kit Químico Clase B (${solicitud.litrosEspumogeno} L Espumógeno)`
+          ],
+          mensaje: respuesta.mensaje || `Despacho táctico autorizado exitosamente para la unidad ${solicitud.camionId}.`
+        } as DespachoResponse;
       }),
       catchError(error => {
         console.group(
@@ -695,30 +844,30 @@ export class DespachoService {
         );
         console.error('• Endpoint:', url);
         console.error('• Código HTTP:', error.status, '| Detalle:', error.message || 'Sin conexión');
-        console.warn('• Acción en UI: Activada respuesta SAGA local de salvaguarda en pantalla.');
         console.groupEnd();
 
-        const respuestaSimulada: DespachoResponse = {
-          exito: true,
-          transaccionId: 'TX-SAGA-SCZ-' + Math.floor(100000 + Math.random() * 900000),
-          incidenteId: solicitud.incidenteId,
-          camionAsignado: solicitud.camionId,
-          materialesReservados: [
-            `Lanza de Espuma 2.5"`,
-            `Kit Químico Clase B (${solicitud.litrosEspumogeno} L Espumógeno)`
-          ],
-          mensaje: `Despacho táctico de emergencia autorizado y ejecutado exitosamente para la unidad ${solicitud.camionId}.`
-        };
-
-        const idx = this.incidentesMock.findIndex(i => i.id === solicitud.incidenteId);
-        if (idx !== -1) {
-          this.incidentesMock[idx].estado = 'DESPACHADO';
-          this.incidentesMock[idx].camionAsignado = solicitud.camionId;
-          this.incidentesMock[idx].unidadesAsignadas = (this.incidentesMock[idx].unidadesAsignadas || 0) + 1;
+        // Si fue una compensación SAGA (409 Conflict):
+        if (error.status === 409 && error.error) {
+          const sagaData = error.error;
+          const itemSaga: TransaccionSagaItem = {
+            sagaId: sagaData.sagaId || 'SAGA-ROLLBACK',
+            incidenteId: solicitud.incidenteId,
+            camionId: solicitud.camionId,
+            operadorId: 'Oficial de Guardia',
+            status: 'COMPENSACION_EJECUTADA',
+            pasoMs2ReservaCamion: 'OK',
+            pasoMs3ReservaKit: 'RECHAZADO_SIN_STOCK',
+            horaInicio: new Date().toLocaleTimeString(),
+            horaFin: new Date().toLocaleTimeString(),
+            duracionMs: 380,
+            detalleCompensacion: sagaData.mensaje || sagaData.codigoError
+          };
+          this.sagaLogsMock.unshift(itemSaga);
+          return throwError(() => new Error(sagaData.mensaje || 'Compensación ejecutada: Insumos rechazados en inventario. Camión liberado.'));
         }
 
-        this.notificarBusNativo(respuestaSimulada, solicitud);
-        return of(respuestaSimulada);
+        const errorMsg = error.error?.message || error.message || 'Error en comunicación con MS-01';
+        return throwError(() => new Error(Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg));
       })
     );
   }
