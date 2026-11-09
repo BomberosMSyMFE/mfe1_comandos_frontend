@@ -27,49 +27,40 @@ envContent.split('\n').forEach(line => {
 });
 
 // Valores con defaults seguros
-const useMocks = (process.env.USE_MOCKS || envVars.USE_MOCKS || 'true').toLowerCase() === 'true';
-const apiMs1Url = process.env.API_MS1_URL || envVars.API_MS1_URL || 'http://localhost:3000/api/v1';
-const wsSalaCrisisUrl = process.env.WS_SALA_CRISIS_URL || envVars.WS_SALA_CRISIS_URL || 'http://localhost:3000/ws/sala-crisis';
-const apiMs5Url = process.env.API_MS5_URL || envVars.API_MS5_URL || 'http://localhost:8005/api/v1';
-const apiMs2FlotasUrl = process.env.API_MS2_FLOTAS_URL || envVars.API_MS2_FLOTAS_URL || 'http://localhost:8082/api/v1';
-const apiMs3GraphqlUrl = process.env.API_MS3_GRAPHQL_URL || envVars.API_MS3_GRAPHQL_URL || 'http://localhost:8003/graphql';
+const useMocks = (process.env.USE_MOCKS || envVars.USE_MOCKS || 'false').toLowerCase() === 'true';
+const apiMs1Url = process.env.API_MS1_URL || envVars.API_MS1_URL || 'https://bomberos-uagrm-scz.duckdns.org/api/v1';
+const wsSalaCrisisUrl = process.env.WS_SALA_CRISIS_URL || envVars.WS_SALA_CRISIS_URL || 'wss://bomberos-uagrm-scz.duckdns.org/ws/sala-crisis';
+const apiMs5Url = process.env.API_MS5_URL || envVars.API_MS5_URL || 'https://bomberos-uagrm-scz.duckdns.org/api/v1/reportes';
+const apiMs2FlotasUrl = process.env.API_MS2_FLOTAS_URL || envVars.API_MS2_FLOTAS_URL || 'https://bomberos-uagrm-scz.duckdns.org/api/v1/flotas';
+const apiMs3GraphqlUrl = process.env.API_MS3_GRAPHQL_URL || envVars.API_MS3_GRAPHQL_URL || 'https://bomberos-uagrm-scz.duckdns.org/graphql/inventario';
 
 const targetDir = path.resolve(__dirname, '../src/environments');
 if (!fs.existsSync(targetDir)) {
   fs.mkdirSync(targetDir, { recursive: true });
 }
 
-// Generar environment.ts (desarrollo)
-const envFileContent = `// GENERADO AUTOMÁTICAMENTE POR scripts/set-env.js DESDE .env
+// Plantilla con resolución inteligente de origen
+const getTemplate = (isProd) => `// GENERADO AUTOMÁTICAMENTE POR scripts/set-env.js DESDE .env
 // NO EDITAR MANUALMENTE ESTE ARCHIVO. Modifica el archivo .env en la raíz.
 
+const isBrowser = typeof window !== 'undefined';
+const isDuckDns = isBrowser &&
+  (window.location.hostname.includes('duckdns.org') ||
+   window.location.hostname.includes('bomberos') ||
+   window.location.protocol === 'https:');
+
 export const environment = {
-  production: false,
+  production: ${isProd},
   useMocks: ${useMocks},
-  apiMs1Url: '${apiMs1Url}',
-  wsSalaCrisisUrl: '${wsSalaCrisisUrl}',
-  apiMs5Url: '${apiMs5Url}',
-  apiMs2FlotasUrl: '${apiMs2FlotasUrl}',
-  apiMs3GraphqlUrl: '${apiMs3GraphqlUrl}'
+  apiMs1Url: isDuckDns ? 'https://bomberos-uagrm-scz.duckdns.org/api/v1' : '${apiMs1Url}',
+  wsSalaCrisisUrl: isDuckDns ? 'wss://bomberos-uagrm-scz.duckdns.org/ws/sala-crisis' : '${wsSalaCrisisUrl}',
+  apiMs5Url: isDuckDns ? 'https://bomberos-uagrm-scz.duckdns.org/api/v1/reportes' : '${apiMs5Url}',
+  apiMs2FlotasUrl: isDuckDns ? 'https://bomberos-uagrm-scz.duckdns.org/api/v1/flotas' : '${apiMs2FlotasUrl}',
+  apiMs3GraphqlUrl: isDuckDns ? 'https://bomberos-uagrm-scz.duckdns.org/graphql/inventario' : '${apiMs3GraphqlUrl}'
 };
 `;
 
-// Generar environment.prod.ts (producción)
-const envProdFileContent = `// GENERADO AUTOMÁTICAMENTE POR scripts/set-env.js DESDE .env
-// NO EDITAR MANUALMENTE ESTE ARCHIVO. Modifica el archivo .env en la raíz.
-
-export const environment = {
-  production: true,
-  useMocks: ${useMocks},
-  apiMs1Url: '${apiMs1Url}',
-  wsSalaCrisisUrl: '${wsSalaCrisisUrl}',
-  apiMs5Url: '${apiMs5Url}',
-  apiMs2FlotasUrl: '${apiMs2FlotasUrl}',
-  apiMs3GraphqlUrl: '${apiMs3GraphqlUrl}'
-};
-`;
-
-fs.writeFileSync(path.join(targetDir, 'environment.ts'), envFileContent);
-fs.writeFileSync(path.join(targetDir, 'environment.prod.ts'), envProdFileContent);
+fs.writeFileSync(path.join(targetDir, 'environment.ts'), getTemplate(false));
+fs.writeFileSync(path.join(targetDir, 'environment.prod.ts'), getTemplate(true));
 
 console.log('[set-env.js] ✅ src/environments/environment.ts sincronizado con .env (useMocks=' + useMocks + ')');
