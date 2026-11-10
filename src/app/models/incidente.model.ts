@@ -7,6 +7,7 @@ export type TipoIncidente = 'ESTRUCTURAL' | 'FORESTAL' | 'QUIMICO' | 'RESCATE' |
 export interface Incidente {
   id: string;                  // Ej: "INC-101"
   codigo: string;              // Ej: "INC-101"
+  codigoRadial?: string;       // Ej: "INC-2026-SCZ-105"
   titulo: string;              // Ej: "Incendio en Depósito Textil"
   descripcion: string;
   tipo: TipoIncidente | string;
@@ -72,9 +73,9 @@ export interface TransaccionSagaItem {
   incidenteId: string;
   camionId: string;
   operadorId: string;
-  status: 'EXITO' | 'COMPENSACION_EJECUTADA' | 'FALLO_CRITICO';
-  pasoMs2ReservaCamion: 'OK' | 'FALLO' | 'LIBERADO';
-  pasoMs3ReservaKit: 'OK' | 'RECHAZADO_SIN_STOCK';
+  status: 'EXITO' | 'COMPENSACION_EJECUTADA' | 'FALLO_CRITICO' | 'FALLIDA';
+  pasoMs2ReservaCamion: 'OK' | 'FALLO' | 'LIBERADO' | 'FALLO_SIN_DISPONIBILIDAD' | 'OK (ROLLBACK)';
+  pasoMs3ReservaKit: 'OK' | 'RECHAZADO_SIN_STOCK' | 'OMITIDO';
   horaInicio: string;
   horaFin: string;
   duracionMs: number;
