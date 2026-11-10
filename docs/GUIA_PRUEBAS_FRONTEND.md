@@ -174,7 +174,7 @@ A continuación se presentan 5 ejemplos concretos listos para leer con micrófon
 
 ### EJEMPLO 6: Comando Radial de Voz con Tolerancia Fonética (Faster-Whisper)
 * **Instrucción Verbal / Micrófono:**
-  > *"Quiero un reporte sobre todos los incidentes que se encuentran pendientes que tengan severidad crítica y necesito saber específicamente solo los siguientes campos: el id del incidente, quién lo denunció y la dirección del incidente."*
+  > *"Quiero un reporte sobre todos los incidentes que se encuentran pendientes que tengan severidad crítica y necesito saber específicamente solo los siguientes campos: el id del incidente, quién lo denunció, telefono, y la dirección del incidente."*
 
 ---
 

@@ -13,7 +13,7 @@ export class SalaCrisisSocketService {
 
   private incidenteCreadoSubject = new Subject<Incidente>();
   private incidenteDespachadoSubject = new Subject<any>();
-  private estadoCambiadoSubject = new Subject<{ incidenteId: string; estado: string; historial: any }>();
+  private estadoCambiadoSubject = new Subject<{ incidenteId: string; estado: string; historial?: any; codigoRadial?: string; codigo?: string }>();
   private alertaCrisisSubject = new Subject<any>();
   private conectadoSubject = new BehaviorSubject<boolean>(false);
 
@@ -34,12 +34,13 @@ export class SalaCrisisSocketService {
 
     try {
       this.socket = io(this.socketUrl, {
+        path: '/socket.io',
         transports: ['websocket', 'polling'],
         withCredentials: true,
         reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
-        timeout: 5000
+        reconnectionAttempts: 20,
+        reconnectionDelay: 1500,
+        timeout: 10000
       });
 
       this.socket.on('connect', () => {
@@ -81,6 +82,13 @@ export class SalaCrisisSocketService {
       this.socket.on('ESTADO_CAMBIADO', (datos: any) => {
         this.ngZone.run(() => {
           console.log('[SalaCrisisSocket] Evento recibido: ESTADO_CAMBIADO', datos);
+          this.estadoCambiadoSubject.next(datos);
+        });
+      });
+
+      this.socket.on('INCIDENTE_CAMBIADO', (datos: any) => {
+        this.ngZone.run(() => {
+          console.log('[SalaCrisisSocket] Evento recibido: INCIDENTE_CAMBIADO', datos);
           this.estadoCambiadoSubject.next(datos);
         });
       });
