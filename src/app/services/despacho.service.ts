@@ -407,33 +407,77 @@ export class DespachoService {
   /**
    * Normaliza un incidente devuelto por el backend NestJS hacia la entidad de frontend
    */
-  private normalizarIncidente(raw: any): Incidente {
+  public normalizarIncidente(raw: any): Incidente {
     const sev = (raw.severidad || 'MEDIA').toUpperCase();
     const nivelRiesgo: 'CRITICO' | 'ALERTA' | 'CONTROLADO' =
       sev === 'CRITICA' || sev === 'ALTA' ? 'CRITICO' : sev === 'MEDIA' ? 'ALERTA' : 'CONTROLADO';
 
+    const lat = raw.ubicacion?.lat || raw.ubicacion?.latitud || raw.latitud || -17.7834;
+    const lng = raw.ubicacion?.lng || raw.ubicacion?.longitud || raw.longitud || -63.1821;
+
+    let dir = raw.ubicacion?.dir || raw.ubicacion?.direccion || raw.direccion || raw.ubicacion;
+
+    // Si viene texto genérico 'Zona reportada por ciudadano', enriquecer con georreferencia táctica real
+    if (!dir || typeof dir !== 'string' || dir.startsWith('Zona reportada por ciudadano') || dir.trim() === '') {
+      const geoRef = this.obtenerReferenciaGps(lat, lng);
+      const matchTicket = (raw.descripcion || dir || '').match(/RAD-[A-Za-z0-9]+/);
+      const ticketTag = matchTicket ? ` [Ticket ${matchTicket[0]}]` : '';
+      dir = `${geoRef}${ticketTag}`;
+    }
+
+    const cuadrante = raw.ubicacion?.zona_cuadrante || raw.ubicacion?.cuadrante || raw.cuadrante || this.calcularCuadranteGps(lat, lng);
+
     return {
       id: raw.id,
       codigo: raw.codigoRadial || raw.codigo || raw.id,
-      titulo: raw.descripcion ? raw.descripcion.slice(0, 50) + '...' : `Siniestro ${raw.codigoRadial || raw.id}`,
+      codigoRadial: raw.codigoRadial || raw.codigo || raw.id,
+      titulo: raw.descripcion ? (raw.descripcion.length > 50 ? raw.descripcion.slice(0, 50) + '...' : raw.descripcion) : `Siniestro ${raw.codigoRadial || raw.id}`,
       descripcion: raw.descripcion || 'Sin descripción detallada.',
       tipo: raw.tipoIncidente || raw.tipo || 'ESTRUCTURAL',
-      cuadrante: raw.ubicacion?.zona_cuadrante || raw.ubicacion?.cuadrante || raw.cuadrante || 'CENTRAL',
-      direccion: raw.ubicacion?.dir || raw.ubicacion?.direccion || raw.direccion || 'Ubicación reportada por coordenadas GPS',
+      cuadrante,
+      direccion: dir,
       nivelRiesgo,
       estado: (raw.estado || 'PENDIENTE') as EstadoIncidente,
       camionAsignado: raw.camionAsignado || raw.camion_asignado || (raw.unidadesAsignadas > 0 ? 'Unidad Asignada' : undefined),
       unidadesAsignadas: raw.unidadesAsignadas || 0,
       litrosAguaEstimados: raw.litrosAguaEstimados || 5000,
       litrosEspumogenoEstimados: raw.litrosEspumogenoEstimados || 100,
-      latitud: raw.ubicacion?.lat || raw.ubicacion?.latitud || raw.latitud || -17.7834,
-      longitud: raw.ubicacion?.lng || raw.ubicacion?.longitud || raw.longitud || -63.1821,
+      latitud: lat,
+      longitud: lng,
       horaReporte: raw.createdAt ? new Date(raw.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '12:00',
       oficialACargo: raw.operadorId || 'Nataly Martínez',
       denunciante: raw.denunciante,
-      createdAt: raw.createdAt,
-      updatedAt: raw.updatedAt
+      createdAt: raw.createdAt || new Date().toISOString(),
+      updatedAt: raw.updatedAt || new Date().toISOString()
     };
+  }
+
+  public obtenerReferenciaGps(lat: number, lng: number): string {
+    if (lat > -17.75 && lat < -17.73) return 'Zona Norte / Satélite Norte (G-77)';
+    if (lat <= -17.75 && lat >= -17.775) {
+      if (lng <= -63.19) return 'Equipetrol Norte / Av. San Martín 4to Anillo';
+      if (lng > -63.19 && lng <= -63.165) return 'Av. Cristo Redentor y Mutualista 3er Anillo';
+      return 'Parque Industrial PI-27 / Mutualista';
+    }
+    if (lat < -17.775 && lat >= -17.795) {
+      if (lng <= -63.195) return 'Radial 19 y Costanera Río Piraí';
+      if (lng > -63.195 && lng <= -63.17) return 'Casco Viejo / Centro Histórico (Plaza 24 de Septiembre)';
+      return 'Radial 10 y Av. Tres Pasos al Frente';
+    }
+    if (lat < -17.795) {
+      if (lng <= -63.19) return 'Doble Vía a La Guardia y 6to Anillo';
+      if (lng > -63.19 && lng <= -63.17) return 'Av. Santos Dumont y 5to Anillo';
+      return 'Ciudadela Plan 3000 / El Mechero';
+    }
+    return 'Radio Urbano Central, Santa Cruz de la Sierra';
+  }
+
+  public calcularCuadranteGps(lat: number, lng: number): string {
+    if (lat > -17.77) return 'Cuadrante Norte';
+    if (lat < -17.795) return 'Cuadrante Sur';
+    if (lng > -63.17) return 'Cuadrante Este';
+    if (lng < -63.195) return 'Cuadrante Oeste';
+    return 'Cuadrante Central';
   }
 
   /**
@@ -664,6 +708,7 @@ export class DespachoService {
 
         grupos.forEach((pasos, sagaId) => {
           // Determinar estado final de la transacción SAGA
+          const paso1Fallo = pasos.some(p => p.estadoSaga === 'FALLO_PASO_1');
           const tieneExito = pasos.some(p =>
             p.estadoSaga === 'COMPLETADA' ||
             p.estadoSaga === 'EXITO' ||
@@ -672,8 +717,10 @@ export class DespachoService {
           const tieneCompensacion = pasos.some(p =>
             p.estadoSaga === 'COMPENSACION_INICIADA' ||
             p.estadoSaga === 'COMPENSACION_EJECUTADA' ||
+            p.estadoSaga === 'COMPENSADA' ||
             p.estadoSaga === 'FALLIDA' ||
-            p.estadoSaga === 'FALLO_CRITICO'
+            p.estadoSaga === 'FALLO_CRITICO' ||
+            p.estadoSaga === 'FALLO_PASO_1'
           );
 
           // Camión asignado registrado en los pasos
@@ -694,14 +741,33 @@ export class DespachoService {
           // Detalle de fallo o compensación
           const pasoConError = pasos.find(p => p.detalleError);
 
+          // Diagnóstico táctico por microservicio
+          let pasoMs2ReservaCamion: TransaccionSagaItem['pasoMs2ReservaCamion'] = 'OK';
+          let pasoMs3ReservaKit: TransaccionSagaItem['pasoMs3ReservaKit'] = 'OK';
+          let statusTransaccion: TransaccionSagaItem['status'] = 'EXITO';
+
+          if (paso1Fallo) {
+            pasoMs2ReservaCamion = 'FALLO_SIN_DISPONIBILIDAD';
+            pasoMs3ReservaKit = 'OMITIDO';
+            statusTransaccion = 'FALLIDA';
+          } else if (tieneCompensacion) {
+            pasoMs2ReservaCamion = 'OK (ROLLBACK)';
+            pasoMs3ReservaKit = 'RECHAZADO_SIN_STOCK';
+            statusTransaccion = 'COMPENSACION_EJECUTADA';
+          } else if (tieneExito) {
+            pasoMs2ReservaCamion = 'OK';
+            pasoMs3ReservaKit = 'OK';
+            statusTransaccion = 'EXITO';
+          }
+
           transacciones.push({
             sagaId,
             incidenteId,
             camionId,
             operadorId: 'Oficial de Guardia',
-            status: tieneExito ? 'EXITO' : (tieneCompensacion ? 'COMPENSACION_EJECUTADA' : 'EXITO'),
-            pasoMs2ReservaCamion: 'OK',
-            pasoMs3ReservaKit: tieneCompensacion ? 'RECHAZADO_SIN_STOCK' : 'OK',
+            status: statusTransaccion as any,
+            pasoMs2ReservaCamion,
+            pasoMs3ReservaKit,
             horaInicio: new Date(minTs).toLocaleTimeString(),
             horaFin: new Date(maxTs).toLocaleTimeString(),
             duracionMs: duracion,
@@ -710,10 +776,10 @@ export class DespachoService {
           });
         });
 
-        // Ordenar con la transacción más reciente primero
+        // Ordenar con la transacción más reciente primero (las últimas 30)
         transacciones.sort((a, b) => b.maxTs - a.maxTs);
 
-        return transacciones.map(({ maxTs, ...resto }) => resto as TransaccionSagaItem);
+        return transacciones.slice(0, 30).map(({ maxTs, ...resto }) => resto as TransaccionSagaItem);
       }),
       catchError(() => of([...this.sagaLogsMock]))
     );
@@ -790,7 +856,12 @@ export class DespachoService {
       incidenteId: solicitud.incidenteId,
       camionId: solicitud.camionId,
       tipoIncidente: solicitud.tipoIncidente,
-      litrosEspumogeno: solicitud.litrosEspumogeno
+      litrosEspumogeno: solicitud.litrosEspumogeno,
+      direccion: solicitud.direccion,
+      ubicacion: solicitud.ubicacion || solicitud.direccion,
+      cuadrante: solicitud.cuadrante,
+      latitud: solicitud.latitud,
+      longitud: solicitud.longitud,
     };
 
     return this.http.post<any>(url, payload, { withCredentials: true }).pipe(
@@ -890,6 +961,11 @@ export class DespachoService {
         incidenteId: solicitud.incidenteId,
         camionId: solicitud.camionId,
         materiales: respuesta.materialesReservados,
+        direccion: solicitud.direccion,
+        ubicacion: solicitud.ubicacion || solicitud.direccion,
+        cuadrante: solicitud.cuadrante,
+        latitud: solicitud.latitud,
+        longitud: solicitud.longitud,
         timestamp: new Date().toISOString()
       };
 
