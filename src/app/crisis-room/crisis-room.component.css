@@ -1068,3 +1068,118 @@
   gap: 8px;
   border-radius: var(--radius-btn);
 }
+
+/* ========================================================================= */
+/* ALERTA Y BADGE TÁCTICO CROSS-MFE (FLOTAS MFE-02 -> SALA DE CRISIS MFE-01) */
+/* ========================================================================= */
+.alerta-cross-mfe {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-radius: var(--radius-card);
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  animation: slideDownIn 0.3s ease-out;
+}
+
+@keyframes slideDownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alerta-cross-mfe.alerta-controlado {
+  background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+  border: 1.5px solid #10B981;
+  color: #065F46;
+}
+
+.alerta-cross-mfe.alerta-cerrado {
+  background: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+  border: 1.5px solid #64748B;
+  color: #1E293B;
+}
+
+.alerta-cross-icono {
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.alerta-controlado .alerta-cross-icono {
+  color: #059669;
+}
+
+.alerta-cerrado .alerta-cross-icono {
+  color: #475569;
+}
+
+.alerta-cross-contenido {
+  flex: 1;
+}
+
+.alerta-cross-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.badge-cross-tag {
+  background: rgba(0, 0, 0, 0.08);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.alerta-cross-titulo {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.alerta-cross-desc {
+  font-size: 12.5px;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.alerta-cross-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.alerta-cross-time {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.btn-cross-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.65;
+  transition: opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-cross-close:hover {
+  opacity: 1;
+}
