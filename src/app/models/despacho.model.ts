@@ -4,6 +4,11 @@ export interface DespachoRequest {
   tipoIncidente: string;
   litrosEspumogeno: number;
   observaciones?: string;
+  direccion?: string;
+  ubicacion?: string;
+  cuadrante?: string;
+  latitud?: number;
+  longitud?: number;
 }
 
 export interface DespachoResponse {
