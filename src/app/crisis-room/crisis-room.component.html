@@ -71,6 +71,28 @@
   <!-- SECCIÓN 1: SALA DE CRISIS (TABLERO KANBAN / TABLA TÁCTICA)               -->
   <!-- ======================================================================= -->
   <div *ngIf="seccionActiva() === 'CRISIS'" class="crisis-dashboard">
+    <!-- Badge Táctico de Sincronización Cross-MFE (Flotas -> Sala de Crisis) -->
+    <div *ngIf="alertaFlotasCrossMfe()" class="alerta-cross-mfe" [ngClass]="'alerta-' + alertaFlotasCrossMfe()!.tipo.toLowerCase()">
+      <div class="alerta-cross-icono">
+        <i class="bi" [ngClass]="alertaFlotasCrossMfe()!.tipo === 'CONTROLADO' ? 'bi-check-circle-fill' : 'bi-shield-fill-check'"></i>
+      </div>
+      <div class="alerta-cross-contenido">
+        <div class="alerta-cross-header">
+          <span class="badge-cross-tag font-tactical-mono">[MFE-02 FLOTAS &bull; TELEMETRÍA EN VIVO]</span>
+          <span class="alerta-cross-titulo font-tactical-mono">
+            INCIDENTE {{ alertaFlotasCrossMfe()!.codigo }} &rarr; ESTADO: {{ alertaFlotasCrossMfe()!.tipo }}
+          </span>
+        </div>
+        <p class="alerta-cross-desc">{{ alertaFlotasCrossMfe()!.mensaje }}</p>
+      </div>
+      <div class="alerta-cross-actions font-tactical-mono">
+        <span class="alerta-cross-time"><i class="bi bi-clock"></i> {{ alertaFlotasCrossMfe()!.timestamp }}</span>
+        <button class="btn-cross-close" (click)="alertaFlotasCrossMfe.set(null)" title="Descartar notificación">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    </div>
+
     <!-- Cabecera de Sala de Crisis -->
     <header class="crisis-header">
       <div class="header-titles">
@@ -542,9 +564,19 @@
 
     <!-- Historial de Transacciones SAGA -->
     <section class="saga-logs-table-container">
-      <h3 class="section-subtitle">
-        <i class="bi bi-journal-text"></i> Historial de Ejecuciones SAGA en Tiempo Real
-      </h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+        <h3 class="section-subtitle" style="margin: 0;">
+          <i class="bi bi-journal-text"></i> Historial de Ejecuciones SAGA en Tiempo Real (Últimas {{ sagaLogs().length }})
+        </h3>
+        <button
+          type="button"
+          class="btn-tactical btn-tactical-outline font-tactical-mono"
+          style="padding: 6px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;"
+          (click)="recargarHistorialSaga()"
+        >
+          <i class="bi bi-arrow-clockwise"></i> Refrescar Monitor SAGA
+        </button>
+      </div>
 
       <div class="table-responsive">
         <table class="table-tactical">
@@ -565,17 +597,17 @@
               <td class="font-tactical-mono">{{ saga.incidenteId }}</td>
               <td class="font-tactical-mono">{{ saga.camionId }}</td>
               <td>
-                <span class="badge-fire" [ngClass]="saga.pasoMs2ReservaCamion === 'OK' ? 'badge-fire-success' : 'badge-fire-warning'">
+                <span class="badge-fire" [ngClass]="saga.pasoMs2ReservaCamion === 'OK' ? 'badge-fire-success' : (saga.pasoMs2ReservaCamion.includes('ROLLBACK') ? 'badge-fire-warning' : 'badge-fire-critical')">
                   {{ saga.pasoMs2ReservaCamion }}
                 </span>
               </td>
               <td>
-                <span class="badge-fire" [ngClass]="saga.pasoMs3ReservaKit === 'OK' ? 'badge-fire-success' : 'badge-fire-critical'">
+                <span class="badge-fire" [ngClass]="saga.pasoMs3ReservaKit === 'OK' ? 'badge-fire-success' : (saga.pasoMs3ReservaKit === 'OMITIDO' ? 'badge-fire-warning' : 'badge-fire-critical')">
                   {{ saga.pasoMs3ReservaKit }}
                 </span>
               </td>
               <td>
-                <span class="badge-fire" [ngClass]="saga.status === 'EXITO' ? 'badge-fire-success' : 'badge-fire-critical'">
+                <span class="badge-fire" [ngClass]="saga.status === 'EXITO' ? 'badge-fire-success' : (saga.status === 'COMPENSACION_EJECUTADA' ? 'badge-fire-warning' : 'badge-fire-critical')">
                   {{ saga.status }}
                 </span>
               </td>
