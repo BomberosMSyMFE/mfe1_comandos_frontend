@@ -264,6 +264,31 @@ export class ReportesComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Verificación sintáctica preventiva de filtros libres
+    const filtroLibre = this.filtroLibre().trim();
+    const tokensProhibidosRegex = /\b(DROP|TRUNCATE|DELETE|UPDATE|ALTER|GRANT|REVOKE|EXEC|EXECUTE|INSERT|CREATE|REPLACE|MERGE|UPSERT)\b/i;
+    const matchProhibido = filtroLibre.match(tokensProhibidosRegex);
+
+    if (matchProhibido) {
+      const token = matchProhibido[0].toUpperCase();
+      this.errorMensaje.set(null);
+      this.procesando.set(true);
+      this.progresoCompilacion.set(20);
+      this.mensajeProgreso.set('Capa 1: Análisis Sintáctico AST y Detección Léxica de Filtros...');
+
+      setTimeout(() => {
+        // Salto a la fase final de las capas de verificación
+        this.progresoCompilacion.set(100);
+        this.mensajeProgreso.set('Fase Final: Filtro Rechazado por Capa de Seguridad AST.');
+        this.procesando.set(false);
+        this.reporteGenerado.set(null);
+        this.errorMensaje.set(
+          `🛡️ [ADVERTENCIA DE SEGURIDAD AST] Criterio o comando destructivo detectado ('${token}'). La consulta ha sido bloqueada por la capa de verificación sintáctica y no se devolverá ninguna tabla.`
+        );
+      }, 350);
+      return;
+    }
+
     this.errorMensaje.set(null);
     this.procesando.set(true);
     this.progresoCompilacion.set(15);
@@ -298,10 +323,15 @@ export class ReportesComponent implements OnInit, OnDestroy {
         next: (resp) => {
           this.progresoCompilacion.set(100);
           this.mensajeProgreso.set('Compilación finalizada.');
-          this.reporteGenerado.set(resp);
+          if (resp.resumen_ejecutivo?.includes('ADVERTENCIA DE SEGURIDAD') || resp.cuadrante === 'RECHAZADO' || !resp.datos_tabla || resp.datos_tabla.total_registros === 0) {
+            this.reporteGenerado.set(null);
+            this.errorMensaje.set(resp.resumen_ejecutivo || '🛡️ [ADVERTENCIA] Consulta bloqueada por seguridad AST.');
+          } else {
+            this.reporteGenerado.set(resp);
+            this.toastExito.set(`Reporte dinámico ${resp.id_reporte} compilado exitosamente.`);
+            setTimeout(() => this.toastExito.set(null), 4000);
+          }
           this.procesando.set(false);
-          this.toastExito.set(`Reporte dinámico ${resp.id_reporte} compilado exitosamente.`);
-          setTimeout(() => this.toastExito.set(null), 4000);
         },
         error: (err) => {
           this.errorMensaje.set(`Error al compilar reporte dinámico: ${err.message || 'Fallo de conexión'}`);
@@ -315,8 +345,33 @@ export class ReportesComponent implements OnInit, OnDestroy {
   // EJECUCIÓN MODO 1: PROMPT NATURAL Y VOZ RADIAL
   // =========================================================================
   public generarPorTexto(): void {
-    if (!this.instruccionTexto().trim()) {
+    const texto = this.instruccionTexto().trim();
+    if (!texto) {
       this.errorMensaje.set('Debe ingresar un requerimiento de reporte.');
+      return;
+    }
+
+    // Capa 1: Verificación Preventiva AST de Tokens Destructivos (Anti-SQLi)
+    const tokensProhibidosRegex = /\b(DROP|TRUNCATE|DELETE|UPDATE|ALTER|GRANT|REVOKE|EXEC|EXECUTE|INSERT|CREATE|REPLACE|MERGE|UPSERT)\b/i;
+    const matchProhibido = texto.match(tokensProhibidosRegex);
+
+    if (matchProhibido) {
+      const token = matchProhibido[0].toUpperCase();
+      this.errorMensaje.set(null);
+      this.procesando.set(true);
+      this.progresoCompilacion.set(25);
+      this.mensajeProgreso.set('Capa 1: Análisis Sintáctico AST y Detección Léxica de Tokens Prohibidos...');
+
+      setTimeout(() => {
+        // Salto inmediato a la fase final de verificación
+        this.progresoCompilacion.set(100);
+        this.mensajeProgreso.set('Fase Final: Bloqueo Defensivo Activado por Capa de Seguridad AST.');
+        this.procesando.set(false);
+        this.reporteGenerado.set(null);
+        this.errorMensaje.set(
+          `🛡️ [ADVERTENCIA DE SEGURIDAD AST] Comando destructivo o inyección SQL no permitida detectada ('${token}'). La instrucción ha sido bloqueada por las capas de verificación y se ha rechazado la generación del reporte.`
+        );
+      }, 400);
       return;
     }
 
@@ -325,13 +380,18 @@ export class ReportesComponent implements OnInit, OnDestroy {
     this.progresoCompilacion.set(30);
     this.mensajeProgreso.set('Procesando solicitud en lenguaje natural con RAG Grounding...');
 
-    this.reportesService.generarPorTexto(this.instruccionTexto().trim(), this.vozTts()).subscribe({
+    this.reportesService.generarPorTexto(texto, this.vozTts()).subscribe({
       next: (resp) => {
         this.progresoCompilacion.set(100);
-        this.reporteGenerado.set(resp);
+        if (resp.resumen_ejecutivo?.includes('ADVERTENCIA DE SEGURIDAD AST') || resp.cuadrante === 'RECHAZADO' || !resp.datos_tabla || resp.datos_tabla.total_registros === 0) {
+          this.reporteGenerado.set(null);
+          this.errorMensaje.set(resp.resumen_ejecutivo || '🛡️ [ADVERTENCIA] Comando no autorizado rechazado por seguridad AST.');
+        } else {
+          this.reporteGenerado.set(resp);
+          this.toastExito.set('Reporte por prompt generado con éxito.');
+          setTimeout(() => this.toastExito.set(null), 4000);
+        }
         this.procesando.set(false);
-        this.toastExito.set('Reporte por prompt generado con éxito.');
-        setTimeout(() => this.toastExito.set(null), 4000);
       },
       error: (err) => {
         this.errorMensaje.set(`Error al conectar con MS-05 IA: ${err.message}`);

@@ -256,6 +256,25 @@ export class ReportesService {
    * Llama a POST /api/v1/reportes/generar-dinamico o ejecuta la compilación contable determinista en frontend.
    */
   public generarReporteDinamico(payload: ReporteDinamicoPayload): Observable<ReporteRespuestaDTO> {
+    const tokensProhibidosRegex = /\b(DROP|TRUNCATE|DELETE|UPDATE|ALTER|GRANT|REVOKE|EXEC|EXECUTE|INSERT|CREATE|REPLACE|MERGE|UPSERT)\b/i;
+    const filtroLibre = payload.criterios?.filtro_libre || '';
+    const matchProhibido = filtroLibre.match(tokensProhibidosRegex);
+    if (matchProhibido) {
+      const token = matchProhibido[0].toUpperCase();
+      const mockBloqueo: ReporteRespuestaDTO = {
+        id_reporte: 'REP-BLOQ-' + Date.now().toString().slice(-6),
+        resumen_ejecutivo: `ADVERTENCIA DE SEGURIDAD AST (Capa 2 Defensiva): Filtro o comando destructivo detectado ('${token}'). La consulta ha sido bloqueada y no se devolverá ninguna tabla.`,
+        markdown_completo: `# ALERTA DE SEGURIDAD TÁCTICA\n\nFiltro destructivo rechazado: '${token}'`,
+        orden_dictada: filtroLibre,
+        descargas: { pdf: '', excel: '', audio: '' },
+        tiempo_generacion_ms: 15,
+        origen: 'CONSTRUCTOR_DINAMICO',
+        cuadrante: 'RECHAZADO',
+        datos_tabla: undefined
+      };
+      return of(mockBloqueo);
+    }
+
     if (environment.useMocks) {
       console.warn('[DEV-AUDIT REPORTES] MODO MOCK ACTIVO: Compilando reporte dinámico en frontend (cero alucinaciones).');
       return of(this.compilarReporteDinamicoLocal(payload));
@@ -445,6 +464,21 @@ export class ReportesService {
   ): ReporteRespuestaDTO {
     const apiBase = environment.apiMs5Url.replace(/\/api\/v1(\/reportes)?\/?$/, '');
 
+    const advSeguridad = raw.criterios_aplicados?.alerta_seguridad || (raw.fuente_datos === 'seguridad_ast' ? raw.resumen_radial : null);
+    if (advSeguridad || raw.cuadrante === 'RECHAZADO' || raw.id_reporte?.startsWith('REP-BLOQ') || raw.resumen_ejecutivo?.includes('ADVERTENCIA DE SEGURIDAD')) {
+      return {
+        id_reporte: raw.id_reporte || `REP-BLOQ-${Date.now()}`,
+        resumen_ejecutivo: advSeguridad || raw.resumen_ejecutivo || 'ADVERTENCIA DE SEGURIDAD AST: Comando no autorizado bloqueado.',
+        markdown_completo: raw.markdown_completo || `# ALERTA DE SEGURIDAD TÁCTICA\n\n${advSeguridad || 'Comando no permitido.'}`,
+        orden_dictada: raw.orden_dictada || raw.instruccion_prompt || undefined,
+        descargas: { pdf: '', excel: '', audio: '' },
+        tiempo_generacion_ms: raw.tiempo_generacion_ms ?? raw.duracion_proceso_ms ?? 0,
+        origen: origenFallback,
+        cuadrante: 'RECHAZADO',
+        datos_tabla: undefined
+      };
+    }
+
     const normalizarUrl = (url?: string): string => {
       if (!url) return '';
       if (url.startsWith('http://') || url.startsWith('https://')) return url;
@@ -517,6 +551,24 @@ export class ReportesService {
   }
 
   public generarPorTexto(instruccion: string, vozTts: string = 'es-BO-MarceloNeural'): Observable<ReporteRespuestaDTO> {
+    const tokensProhibidosRegex = /\b(DROP|TRUNCATE|DELETE|UPDATE|ALTER|GRANT|REVOKE|EXEC|EXECUTE|INSERT|CREATE|REPLACE|MERGE|UPSERT)\b/i;
+    const matchProhibido = (instruccion || '').match(tokensProhibidosRegex);
+    if (matchProhibido) {
+      const token = matchProhibido[0].toUpperCase();
+      const mockBloqueo: ReporteRespuestaDTO = {
+        id_reporte: 'REP-BLOQ-' + Date.now().toString().slice(-6),
+        resumen_ejecutivo: `ADVERTENCIA DE SEGURIDAD AST (Capa 2 Defensiva): Intento de comando destructivo o no autorizado detectado ('${token}'). La instrucción ha sido bloqueada por la capa de verificación sintáctica. No se devolverá ninguna tabla de datos.`,
+        markdown_completo: `# ALERTA DE SEGURIDAD TÁCTICA\n\nIntento de modificación detectado: '${token}'. Consulta rechazada.`,
+        orden_dictada: instruccion,
+        descargas: { pdf: '', excel: '', audio: '' },
+        tiempo_generacion_ms: 15,
+        origen: 'TEXTO_DIRECTO',
+        cuadrante: 'RECHAZADO',
+        datos_tabla: undefined
+      };
+      return of(mockBloqueo);
+    }
+
     if (environment.useMocks) {
       console.warn('[DEV-AUDIT REPORTES] MODO MOCK ACTIVO: Generando reporte por texto simulado local.');
       const mock: ReporteRespuestaDTO = {
